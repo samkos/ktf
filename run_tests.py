@@ -499,9 +499,10 @@ def run():
       tags = line.split(" ")
       ts = copy.deepcopy(tags_names)
       tag = {}
-      print "ts",ts
-      print "tags",tags
-      while(len(tags)):
+      if DEBUG:
+        print "ts",ts
+        print "tags",tags
+      while(len(ts)):
         t = ts.pop(0)
         tag["%s" % t] = tags.pop(0)
         if DEBUG:
@@ -521,10 +522,13 @@ def run():
         
       print "\tcreating test directory %s for %s: " % (dest_directory,MACHINE)
 
-      
+      if "Submit" in tag.keys():
+        submit_command = tag["Submit"]
+      else:
+        submit_command = SUBMIT_CMD
       cmd = cmd + \
             "mkdir -p %s; cd %s ; tar fc - -C ../../tests/%s . | tar xvf - > /dev/null\n " % \
-            ( dest_directory, dest_directory, tag["Directory"]) 
+            ( dest_directory, dest_directory,tag["Directory"]) 
       
       if os.path.exists('tests/common'):
         cmd = cmd + \
@@ -537,8 +541,8 @@ def run():
 
       if job_file:
         cmd = "cd %s; %s %s > job.%s.out 2>&1 " % \
-            (os.path.dirname(job_file),tag["Submit"],\
-               os.path.basename(job_file), tag["Submit"])
+            (os.path.dirname(job_file), submit_command,\
+               os.path.basename(job_file),  submit_command)
         if SUBMIT:
           print "\tsubmitting job %s " % job_file
           wrapped_system(cmd,comment="submitting job %s" % job_file)
