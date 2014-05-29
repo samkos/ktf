@@ -14,6 +14,7 @@ DEBUG         = False
 FAKE          = False
 DRY           = False
 MACHINE       = False
+BUILD         = False
 SUBMIT        = False
 SUBMIT_CMD    = False
 TIME          = False
@@ -199,7 +200,7 @@ def usage(message = None, error_detail = ""):
       print "\n  usage: \n \t python  run_tests.py \
              \n\t\t[ --help ] \
              \n\t\t[ --machine=<machine>] [ --test=<test_nb> ] \
-             \n\t\t[ --submit ] [ --time ] \
+             \n\t\t[ --submit ] [--build ] [ --time ] \
              \n\t\t[ --debug ] [ --fake ] [ --dry-run ] \
            \n"  
 
@@ -213,12 +214,13 @@ def usage(message = None, error_detail = ""):
 def parse(args=sys.argv[1:]):
     """ parse the command line and set global _flags according to it """
 
-    global DEBUG, FAKE, MACHINE, TESTS, DRY, SUBMIT, MY_HOSTNAME, TIME
+    global DEBUG, FAKE, MACHINE, TESTS, DRY, SUBMIT, MY_HOSTNAME, TIME, BUILD
     
     try:
         opts, args = getopt.getopt(args, "h", 
                           ["help", "machine=", "test=", \
-                             "debug", "time", "fake", "dry-run", "submit" ])    
+                             "debug", "time", "build", \
+                             "fake", "dry-run", "submit" ])    
     except getopt.GetoptError, err:
         # print help information and exit:
         usage(err)
@@ -233,6 +235,8 @@ def parse(args=sys.argv[1:]):
         DEBUG = True
       elif option in ("--time"):
         TIME = True
+      elif option in ("--build"):
+        BUILD = True
       elif option in ("--submit"):
         SUBMIT = True
       elif option in ("--fake"):
@@ -255,6 +259,11 @@ def parse(args=sys.argv[1:]):
     if SUBMIT and TIME : 
       usage("--time and --submit can not be asked simultaneously")
 
+    if BUILD and TIME : 
+      usage("--time and --build can not be asked simultaneously")
+
+    if not(BUILD) and not(TIME) and not(SUBMIT):
+      usage("at least --build, --submit or --time should be asked")
 
 #########################################################################
 # os.system wrapped to enable Trace if needed
