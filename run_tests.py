@@ -239,6 +239,7 @@ def parse(args=sys.argv[1:]):
         BUILD = True
       elif option in ("--submit"):
         SUBMIT = True
+        BUILD = True
       elif option in ("--fake"):
         DEBUG = True
         FAKE = True
