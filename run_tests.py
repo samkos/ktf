@@ -133,10 +133,12 @@ def get_machine():
     
     if (machine[:4]=="fen1" or machine[:4]=="fen2"):
         machine = "shaheen"
-        SUBMIT_CMD = '/opt/share/altd/1.0.1/alias/rerouting/llsubmit'
+#        SUBMIT_CMD = '/opt/share/altd/1.0.1/alias/rerouting/llsubmit'
+        SUBMIT_CMD = 'llsubmit'
     elif (machine[:4]=="fen3" or machine[:4]=="fen4"):
         machine = "neser"
-        SUBMIT_CMD = '/opt/share/altd/1.0.1/alias/rerouting/llsubmit'
+#        SUBMIT_CMD = '/opt/share/altd/1.0.1/alias/rerouting/llsubmit'
+        SUBMIT_CMD = 'llsubmit'
     elif (machine[:4]=="swan"):
         machine = "swan"
         SUBMIT_CMD = 'qsub'
