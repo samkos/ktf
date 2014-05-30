@@ -132,10 +132,10 @@ def get_machine():
     
     if (machine[:4]=="fen1" or machine[:4]=="fen2"):
         machine = "shaheen"
-        SUBMIT_CMD = 'llsubmit'
+        SUBMIT_CMD = '/opt/share/altd/1.0.1/alias/rerouting/llsubmit'
     elif (machine[:4]=="fen3" or machine[:4]=="fen4"):
         machine = "neser"
-        SUBMIT_CMD = 'llsubmit'
+        SUBMIT_CMD = '/opt/share/altd/1.0.1/alias/rerouting/llsubmit'
     elif (machine[:4]=="swan"):
         machine = "swan"
         SUBMIT_CMD = 'qsub'
@@ -540,9 +540,9 @@ def run():
       job_file=substitute(dest_directory,tag)
 
       if job_file:
-        cmd = "cd %s; %s %s > job.%s.out 2>&1 " % \
+        cmd = "cd %s; %s %s > job.submit.out 2>&1 " % \
             (os.path.dirname(job_file), submit_command,\
-               os.path.basename(job_file),  submit_command)
+               os.path.basename(job_file))
         if SUBMIT:
           print "\tsubmitting job %s " % job_file
           wrapped_system(cmd,comment="submitting job %s" % job_file)
