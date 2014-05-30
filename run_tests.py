@@ -387,8 +387,9 @@ def list_dirs(directory,what):
 # list all available job.out and print ellapsed time
 #########################################################################
 
-def list_jobs_and_get_time(path=".",level=0,timing=False):
+def list_jobs_and_get_time(path=".",level=0,timing=False,dir_already_printed={}):
   global ALL
+
 
   if level==0:
     print "\n\tBenchamarks Availables: " 
@@ -412,12 +413,26 @@ def list_jobs_and_get_time(path=".",level=0,timing=False):
     for d in dirs :
       path_new = path + "/" + d
       if d=="job.out":
-        #print "%s- %s " % ("\t\t"+"   "*(level),d)
+        p = re.match(r"(.*tests_.*)/.*",path)
+        if p:
+          dir_match = p.group(1)
+        else:
+          dir_match = None
+        if not(dir_match in dir_already_printed.keys()):
+          print "%s- %s " % ("\t"+"   "*(level),dir_match)
+          dir_already_printed[dir_match] = False
         timing_result = get_timing(path_new)
         if timing_result>-1 or ALL:
-          print "\t%10s s \t %s  " % ( timing_result, path_new)
+          case_match = path_new.replace(dir_match+"/","")
+          case_match = case_match.replace("/job.out","")
+          p = re.match(r".*_(\d+).*",case_match)
+          if p:
+            proc_match = p.group(1)
+          else:
+            proc_match = "???"
+          print "\t\t%10s s \t %5s %s  " % ( timing_result, proc_match, case_match)
       if os.path.isdir(path_new):
-        list_jobs_and_get_time(path_new,level+1,timing)
+        list_jobs_and_get_time(path_new,level+1,timing,dir_already_printed)
 
 
 
