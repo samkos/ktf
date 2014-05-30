@@ -404,41 +404,49 @@ def list_jobs_and_get_time(path=".",level=0,timing=False,dir_already_printed={},
     return
     
   dirs = sorted(os.listdir(path))
-    
+
   if len(dirs):
     #if level == SCANNING_FROM :
     #  print "%s%d %s Availables: " % ("\t"*(level+1),len(dirs),ArboNames[level])
     if DEBUG:
       print level,dirs
-    for d in dirs :
-      path_new = path + "/" + d
-      if d=="job.out":
-        # formatting the dirname
-        p = re.match(r"(.*tests_.*)/.*",path)
-        if p:
-          dir_match = p.group(1)
-        else:
-          dir_match = "??? (%s)" % path
+    for d in [ "job.out" ]:
 
-        timing_result = get_timing(path_new)
-        if timing_result>-1 or ALL:
-          if not(dir_match in dir_already_printed.keys()):
-            print "%s- %s " % ("\t"+"   "*(level),dir_match)
-          dir_already_printed[dir_match] = False
-          case_match = path_new.replace(dir_match+"/","")
-          case_match = case_match.replace("/job.out","")
-          p = re.match(r".*_(\d+).*",case_match)
+      if os.path.exists(path + "/" + d) :
+        if os.path.isfile(path + "/" + d) :
+          # formatting the dirname
+          p = re.match(r"(.*tests_.*)/.*",path)
           if p:
-            proc_match = p.group(1)
+            dir_match = p.group(1)
           else:
-            p = re.match(r"(\d+).*$",case_match)
+            dir_match = "??? (%s)" % path
+
+          path_new = path + "/" + d
+
+          timing_result = get_timing(path_new)
+          if timing_result>-1 or ALL:
+            if not(dir_match in dir_already_printed.keys()):
+              print "%s- %s " % ("\t"+"   "*(level),dir_match)
+            dir_already_printed[dir_match] = False
+            case_match = path_new.replace(dir_match+"/","")
+            case_match = case_match.replace("/job.out","")
+            p = re.match(r".*_(\d+).*",case_match)
             if p:
               proc_match = p.group(1)
             else:
-              proc_match = "???"
-          print "\t\t%10s s \t %5s %s  " % ( timing_result, proc_match, case_match)
-      if os.path.isdir(path_new):
-        list_jobs_and_get_time(path_new,level+1,timing,dir_already_printed,current_dir_match)
+              p = re.match(r"(\d+).*$",case_match)
+              if p:
+                proc_match = p.group(1)
+              else:
+                proc_match = "???"
+            print "\t\t%10s s \t %5s %s  " % ( timing_result, proc_match, case_match)
+
+      
+      for d in dirs :
+        if not(d in [".git","src"]):
+          path_new = path + "/" + d
+          if os.path.isdir(path_new):
+            list_jobs_and_get_time(path_new,level+1,timing,dir_already_printed,current_dir_match)
 
 
 
