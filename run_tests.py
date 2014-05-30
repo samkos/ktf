@@ -431,7 +431,7 @@ def list_jobs_and_get_time(path=".",level=0,timing=False,dir_already_printed={},
           if p:
             proc_match = p.group(1)
           else:
-            p = re.match(r".*(\d+).*$",case_match)
+            p = re.match(r"(\d+).*$",case_match)
             if p:
               proc_match = p.group(1)
             else:
