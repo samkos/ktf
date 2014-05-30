@@ -18,6 +18,7 @@ BUILD         = False
 SUBMIT        = False
 SUBMIT_CMD    = False
 TIME          = False
+ALL           = False
 
 TESTS = {}
 ROOT_PATH     = os.path.dirname(__file__)
@@ -171,16 +172,11 @@ def welcome_message():
     MY_HOSTNAME, TMPDIR = get_machine()
     MY_HOSTNAME_FULL_NAME = socket.gethostname()
 
-    print """
-                   #########################################
-                   #                                       #
+    print """                   #########################################
                    #   Welcome to KSL Test Framework 0.1!  #
-                   #                                       #
                    #########################################
-
-                   
      """
-    print "\n\trunning on %s (%s) " %(MY_HOSTNAME_FULL_NAME,MY_HOSTNAME)
+    print "\trunning on %s (%s) " %(MY_HOSTNAME_FULL_NAME,MY_HOSTNAME)
     print "\n\tprocessing ..."
     print "\t\t", " ".join(sys.argv)
 
@@ -196,11 +192,12 @@ def usage(message = None, error_detail = ""):
     """ helping message"""
     if message:
         print "\n\tError %s:\n\t\t%s\n" % (error_detail,message)
+        print "\ttype ktf -h for the list of available options..."
     else:
       print "\n  usage: \n \t python  run_tests.py \
              \n\t\t[ --help ] \
              \n\t\t[ --machine=<machine>] [ --test=<test_nb> ] \
-             \n\t\t[ --submit ] [--build ] [ --time ] \
+             \n\t\t[ --submit ] [--build ] [ --time ] [ --all ]\
              \n\t\t[ --debug ] [ --fake ] [ --dry-run ] \
            \n"  
 
@@ -214,12 +211,12 @@ def usage(message = None, error_detail = ""):
 def parse(args=sys.argv[1:]):
     """ parse the command line and set global _flags according to it """
 
-    global DEBUG, FAKE, MACHINE, TESTS, DRY, SUBMIT, MY_HOSTNAME, TIME, BUILD
+    global DEBUG, FAKE, MACHINE, TESTS, DRY, SUBMIT, MY_HOSTNAME, TIME, ALL, BUILD
     
     try:
         opts, args = getopt.getopt(args, "h", 
                           ["help", "machine=", "test=", \
-                             "debug", "time", "build", \
+                             "debug", "time", "build", "all" \
                              "fake", "dry-run", "submit" ])    
     except getopt.GetoptError, err:
         # print help information and exit:
@@ -235,6 +232,8 @@ def parse(args=sys.argv[1:]):
         DEBUG = True
       elif option in ("--time"):
         TIME = True
+      elif option in ("--all"):
+        ALL = True
       elif option in ("--build"):
         BUILD = True
       elif option in ("--submit"):
@@ -389,6 +388,7 @@ def list_dirs(directory,what):
 #########################################################################
 
 def list_jobs_and_get_time(path=".",level=0,timing=False):
+  global ALL
 
   if level==0:
     print "\n\tBenchamarks Availables: " 
@@ -414,9 +414,10 @@ def list_jobs_and_get_time(path=".",level=0,timing=False):
       if d=="job.out":
         #print "%s- %s " % ("\t\t"+"   "*(level),d)
         timing_result = get_timing(path_new)
-        if timing_result>-1:
+        if timing_result>-1 or ALL:
           print "\t%10s s \t %s  " % ( timing_result, path_new)
-      list_jobs_and_get_time(path_new,level+1,timing)
+      if os.path.isdir(path_new):
+        list_jobs_and_get_time(path_new,level+1,timing)
 
 
 
