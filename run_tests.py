@@ -612,14 +612,20 @@ def run():
       if DEBUG:
         print "ts",ts
         print "tags",tags
-      while(len(ts)):
-        t = ts.pop(0)
-        tag["%s" % t] = tags.pop(0)
+      try:
+        while(len(ts)):
+          t = ts.pop(0)
+          tag["%s" % t] = tags.pop(0)
+          if DEBUG:
+            print "tag %s : !%s! " % (t,tag["%s" % t])
         if DEBUG:
-          print "tag %s : !%s! " % (t,tag["%s" % t])
-      if DEBUG:
-        print "tag:",tag
-
+          print "tag:",tag
+      except:
+        print "\tError : pb encountered in reading the test matrix file : %s" % test_matrix_filename,
+        print "at  line \n\t\t!%s!" % line
+        print "\t\tless parameters to read than expected... Those expected are"
+        print "\t\t\t ",tags_names
+        sys.exit(1)
 
       dest_directory = "tests_%s_%s/%s" % (MACHINE,now,tag["Test"])
       cmd = ""
