@@ -528,6 +528,11 @@ def get_timing(path):
   fic = open(path)
   t = "__NEWLINE__".join(fic.readlines())
   fic.close()
+  p = re.compile("\s+")
+  t = p.sub(' ',t)
+  p = re.compile("\s*__NEWLINE__\s*")
+  t = p.sub('__NEWLINE__',t)
+
   try:
     start_timing = t.split("======== start ==============")
     end_timing = t.split("======== end ==============")
@@ -537,6 +542,9 @@ def get_timing(path):
       (from_month,from_day,from_time) = (from_date[1],from_date[2],from_date[3])
       to_date = end_timing[1].replace("__NEWLINE__","").replace("\n","").split(" ")
       (to_month,to_day,to_time) = (to_date[1],to_date[2],to_date[3])
+      if DEBUG:
+        print "[get_time] from_time=!%s! start_timing=!%s! from_date" % (from_time,start_timing[1]), from_date
+        print "[get_time]   to_time=!%s!   end_timing=!%s! to_date" % (to_time,end_timing[1]) , to_date
       (from_hour,from_minute,from_second) = from_time.split(":")
       (to_hour,to_minute,to_second) = to_time.split(":")
       ellapsed_time = ((int(to_day)*24.+int(to_hour))*60+int(to_minute))*60+int(to_second) \
@@ -546,7 +554,8 @@ def get_timing(path):
     else:
       if DEBUG:
         print "[get_timing] Exception type 1"
-        except_print()
+        if DEBUG>1:
+          except_print()
       ellapsed_time = -1
   except:
     if DEBUG:
