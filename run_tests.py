@@ -24,7 +24,7 @@ ALL                  = False
 TESTS = {}
 
 KTF_PATH = os.getenv("KTF_PATH")
-if len(KTF_PATH)==0:
+if not(KTF_PATH):
   KTF_PATH = "/opt/share/ktf/0.1/"
 
 ROOT_PATH     = os.path.dirname(__file__)
