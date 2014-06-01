@@ -10,17 +10,23 @@ import subprocess
 import re
 import copy
 
-DEBUG         = False
-FAKE          = False
-DRY           = False
-MACHINE       = False
-BUILD         = False
-SUBMIT        = False
-SUBMIT_CMD    = False
-TIME          = False
-ALL           = False
+DEBUG                = False
+FAKE                 = False
+DRY                  = False
+MACHINE              = False
+MATRIX_FILE_TEMPLATE = ""
+BUILD                = False
+SUBMIT               = False
+SUBMIT_CMD           = False
+TIME                 = False
+ALL                  = False
 
 TESTS = {}
+
+KTF_PATH = os.getenv("KTF_PATH")
+if len(KTF_PATH)==0:
+  KTF_PATH = "/opt/share/ktf/0.1/"
+
 ROOT_PATH     = os.path.dirname(__file__)
 ROOT_PATH     = "."
 
@@ -35,14 +41,14 @@ ERROR              = -1
 #########################################################################
 
 
-for d in ["%s/LOGS" % ROOT_PATH]:
+for d in ["%s/LOGS" % KTF_PATH]:
   if not(os.path.exists(d)):
     os.mkdir(d)
 
 logger = logging.getLogger('ktf.log')
 logger.propagate = None
 logger.setLevel(logging.INFO)
-log_file_name = "%s/" % ROOT_PATH+"LOGS/ktf.log"
+log_file_name = "%s/" % KTF_PATH+"LOGS/ktf.log"
 open(log_file_name, "a").close()
 handler = logging.handlers.RotatingFileHandler(
      log_file_name, maxBytes = 20000000,  backupCount = 5)
@@ -53,7 +59,7 @@ logger.addHandler(handler)
 loggerror = logging.getLogger('ktf_err.log')
 loggerror.propagate = None
 loggerror.setLevel(logging.DEBUG)
-log_file_name = "%s/" % ROOT_PATH+"LOGS/ktf_err.log"
+log_file_name = "%s/" % KTF_PATH+"LOGS/ktf_err.log"
 open(log_file_name, "a").close()
 handler = logging.handlers.RotatingFileHandler(
      log_file_name, maxBytes = 20000000,  backupCount = 5)
@@ -125,7 +131,7 @@ def get_machine():
     """
     determines the machine where tests are run
     """
-    global SUBMIT_CMD
+    global SUBMIT_CMD, MATRIX_FILE_TEMPLATE
 
     tmp_directory = "/tmp"
     machine = socket.gethostname()
@@ -135,6 +141,37 @@ def get_machine():
         machine = "shaheen"
 #        SUBMIT_CMD = '/opt/share/altd/1.0.1/alias/rerouting/llsubmit'
         SUBMIT_CMD = 'llsubmit'
+        MATRIX_FILE_TEMPLATE = """tests/shaheen_cases.txt__SEP2__# test matrix for shaheen
+
+Test		Directory         NB_CORES       PARTITION_SIZE    ELLAPSED_TIME            EXECUTABLE
+
+# test test1
+
+#Code_test1_1024	test1          1024              256            1:10:00         ../../src/code.x.y.z/bin/code
+#Code_test1_512	test1          512               128            1:10:00         ../../src/code.x.y.z/bin/code
+#Code_test1_256	test1          256               64             3:10:00         ../../src/code.x.y.z/bin/code
+#Code_test1_128	test1          128               32             3:10:00         ../../src/code.x.y.z/bin/code
+
+__SEP1__tests/test1/job.shaheen.template__SEP2__#!/bin/sh
+#@ job_name         = __Test__
+#@ output           = job.out
+#@ error            = job.err
+#@ job_type         = bluegene
+#@ bg_size          = __PARTITION_SIZE__
+#@ wall_clock_limit = __ELLAPSED_TIME__
+## If required uncomment the following line and add your project ID
+#@ account_no = k01
+#@ queue
+
+cd __STARTING_DIR__ 
+echo ======== start ==============
+date
+echo ======== start ==============
+mpirun -np __NB_CORES__  -mode VN -exe __EXECUTABLE__   #   -env "BGLMPIO_COMM=1"  -args '-opt xxx'
+echo ======== end ==============
+date
+echo ======== end ==============
+"""
     elif (machine[:4]=="fen3" or machine[:4]=="fen4"):
         machine = "neser"
 #        SUBMIT_CMD = '/opt/share/altd/1.0.1/alias/rerouting/llsubmit'
@@ -199,7 +236,7 @@ def usage(message = None, error_detail = ""):
       print "\n  usage: \n \t python  run_tests.py \
              \n\t\t[ --help ] \
              \n\t\t[ --machine=<machine>] [ --test=<test_nb> ] \
-             \n\t\t[ --submit ] [--build ] [ --time ] [ --all ]\
+             \n\t\t[ --submit ] [--build ] [ --time ] [ --create-template ] [ --all ]\
              \n\t\t[ --debug ] [ --fake ] [ --dry-run ] \
            \n"  
 
@@ -218,7 +255,7 @@ def parse(args=sys.argv[1:]):
     try:
         opts, args = getopt.getopt(args, "h", 
                           ["help", "machine=", "test=", \
-                             "debug", "time", "build", "all" \
+                             "debug", "time", "create-template", "build", "all" \
                              "fake", "dry-run", "submit" ])    
     except getopt.GetoptError, err:
         # print help information and exit:
@@ -234,6 +271,8 @@ def parse(args=sys.argv[1:]):
         DEBUG = True
       elif option in ("--time"):
         TIME = True
+      elif option in ("--create-template"):
+        create_test_matrix_template()
       elif option in ("--all"):
         ALL = True
       elif option in ("--build"):
@@ -384,6 +423,30 @@ def list_dirs(directory,what):
     if what=="FILE":
       return f
 
+#########################################################################
+# create test template (matrix and job)
+#########################################################################
+def create_test_matrix_template():
+  global MATRIX_FILE_TEMPLATE
+
+  l = MATRIX_FILE_TEMPLATE
+  
+  print
+
+  for filename_content in l.split("__SEP1__"):
+    filename,content = filename_content.split("__SEP2__")
+    if os.path.exists(filename):
+      print "\ttest matrix file %s already exists... skipping it!" % filename
+    else:
+      dirname = os.path.dirname(filename)
+      if not(os.path.exists(dirname)):
+        wrapped_system("mkdir -p %s" % dirname,comment="creating dir %s" % dirname)
+      f = open(filename,"w")
+      f.write(content)
+      f.close()
+      user_message(msg="file %s created " % filename)
+
+  sys.exit(0)
 
 #########################################################################
 # list all available job.out and print ellapsed time
@@ -500,6 +563,7 @@ def run():
   
   if not(os.path.exists(test_matrix_filename)):
     print "\n\t ERROR : missing test matrix file %s for machine %s" % (test_matrix_filename,MACHINE)
+    print "\n\t         ktf --create-test-template can be called to create the templates"
     sys.exit(1)
 
   print
