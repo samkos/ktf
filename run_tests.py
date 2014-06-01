@@ -624,8 +624,9 @@ def run():
         print "\tError : pb encountered in reading the test matrix file : %s" % test_matrix_filename,
         print "at  line \n\t\t!%s!" % line
         print "\t\tless parameters to read than expected... Those expected are"
-        print "\t\t\t ",tags_names
-        print "\t\tand so far, we read",tag
+        print "\t\t\t",tags_names
+        print "\t\tand so far, we read"
+        print "\t\t\t",tag
         sys.exit(1)
 
       dest_directory = "tests_%s_%s/%s" % (MACHINE,now,tag["Test"])
