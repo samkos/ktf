@@ -625,6 +625,7 @@ def run():
         print "at  line \n\t\t!%s!" % line
         print "\t\tless parameters to read than expected... Those expected are"
         print "\t\t\t ",tags_names
+        print "\t\tand so far, we read",tag
         sys.exit(1)
 
       dest_directory = "tests_%s_%s/%s" % (MACHINE,now,tag["Test"])
