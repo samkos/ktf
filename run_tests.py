@@ -590,6 +590,10 @@ def run():
   for line in open(test_matrix_filename):
     p = re.compile("\s+")
     line = p.sub(' ',line[:-1])
+    p = re.compile("\s+$")
+    line = p.sub('',line[:-1])
+    p = re.compile("^\s+")
+    line = p.sub('',line[:-1])
     if DEBUG:
       print "analyzing line !!"+line+"!!"
     if len(line)>0  and not (line[0]=='#'):
