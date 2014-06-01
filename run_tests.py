@@ -1,4 +1,4 @@
-import getopt, sys, os, socket
+import getopt, sys, os, socket, traceback
 
 import logging
 import logging.handlers
@@ -10,7 +10,7 @@ import subprocess
 import re
 import copy
 
-DEBUG                = False
+DEBUG                = 0
 FAKE                 = False
 DRY                  = False
 MACHINE              = False
@@ -268,7 +268,7 @@ def parse(args=sys.argv[1:]):
       if option in ("-h", "--help"):
         usage("")
       elif option in ("--debug"):
-        DEBUG = True
+        DEBUG = 1
       elif option in ("--time"):
         TIME = True
       elif option in ("--create-template"):
@@ -457,10 +457,10 @@ def list_jobs_and_get_time(path=".",level=0,timing=False,dir_already_printed={},
 
 
   if level==0:
-    print "\n\tBenchamarks Availables: " 
+    print "\n\tBenchmarks Availables: " 
   
-  if DEBUG:
-    print "\n scanning ",path," for timings=",timing
+  if DEBUG>3:
+    print "\n[list_jobs_and_get_time] scanning ",path," for timings=",timing
 
   if not(os.path.exists(path)):
     return
@@ -473,12 +473,13 @@ def list_jobs_and_get_time(path=".",level=0,timing=False,dir_already_printed={},
   if len(dirs):
     #if level == SCANNING_FROM :
     #  print "%s%d %s Availables: " % ("\t"*(level+1),len(dirs),ArboNames[level])
-    if DEBUG:
+    if DEBUG>3:
       print level,dirs
     for d in [ "job.out" ]:
-
       if os.path.exists(path + "/" + d) :
         if os.path.isfile(path + "/" + d) :
+          if DEBUG:
+            print "[list_jobs_and_get_time] candidate : %s " % (path+"/"+"job.out")
           # formatting the dirname
           p = re.match(r"(.*tests_.*)/.*",path)
           if p:
@@ -544,10 +545,14 @@ def get_timing(path):
         print from_date,to_date,(from_month,from_day,from_time),(to_month,to_day,to_time)
     else:
       if DEBUG:
-        print "None"
+        print "[get_timing] Exception type 1"
+        except_print()
       ellapsed_time = -1
   except:
-      ellapsed_time=-2
+    if DEBUG:
+      print "[get_timing] Exception type 2"
+      except_print()
+    ellapsed_time=-2
   return ellapsed_time
 
 
