@@ -237,7 +237,7 @@ def usage(message = None, error_detail = ""):
              \n\t\t[ --help ] \
              \n\t\t[ --machine=<machine>] [ --test=<test_nb> ] \
              \n\t\t[ --submit ] [--build ] [ --time ] [ --create-template ] [ --all ]\
-             \n\t\t[ --debug ] [ --fake ] [ --dry-run ] \
+             \n\t\t[ --debug ] [ --debug-level=[0|1|2] ] [ --fake ] [ --dry-run ] \
            \n"  
 
     sys.exit(1)
@@ -255,7 +255,7 @@ def parse(args=sys.argv[1:]):
     try:
         opts, args = getopt.getopt(args, "h", 
                           ["help", "machine=", "test=", \
-                             "debug", "time", "create-template", "build", "all" \
+                             "debug", "debug-level=", "time", "create-template", "build", "all" \
                              "fake", "dry-run", "submit" ])    
     except getopt.GetoptError, err:
         # print help information and exit:
@@ -269,6 +269,8 @@ def parse(args=sys.argv[1:]):
         usage("")
       elif option in ("--debug"):
         DEBUG = 1
+      elif option in ("--debug-level"):
+        DEBUG = int(argument)
       elif option in ("--time"):
         TIME = True
       elif option in ("--create-template"):
