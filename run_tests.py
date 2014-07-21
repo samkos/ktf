@@ -590,14 +590,16 @@ def run():
   if not(SUBMIT_CMD):
     mandatory_fields.append("Submit")
   for line in open(test_matrix_filename):
+    if DEBUG:
+      print "analyzing line !!"+line+"!!"
     p = re.compile("\s+")
     line = p.sub(' ',line[:-1])
     p = re.compile("\s+$")
-    line = p.sub('',line[:-1])
+    line = p.sub('',line)
     p = re.compile("^\s+")
-    line = p.sub('',line[:-1])
+    line = p.sub('',line)
     if DEBUG:
-      print "analyzing line !!"+line+"!!"
+      print "analyzing  line cleaned !!"+line+"!!"
     if len(line)>0  and not (line[0]=='#'):
       if not(tags_ok):
         tags_names = line.split(" ")
