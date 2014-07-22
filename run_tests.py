@@ -507,9 +507,13 @@ def list_jobs_and_get_time(path=".",level=0,timing=False,dir_already_printed={},
                 proc_match = p.group(1)
               else:
                 proc_match = "???"
-            print "\t\t%10s s \t %5s %s  " % ( timing_result, proc_match, case_match)
+            ktf_post_processing_output=""
+            if os.path.isfile(path + "/ktf_post") :
+              if DEBUG:
+                print "[list_jobs_and_get_time] post processing : %s " % (path+"/ktf_post")
+              ktf_post_processing_output = os.popen("cd %s; . ktf_post" % path).read()[:-1];
+            print "\t\t%10s s \t %s \t %5s %4s " % ( timing_result, ktf_post_processing_output, proc_match, case_match)
 
-      
       for d in dirs :
         if not(d in [".git","src"]):
           path_new = path + "/" + d
