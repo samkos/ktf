@@ -187,7 +187,37 @@ echo ======== end ==============
     elif (machine[:5]=="vhn11"):
         machine = "fujitsu"
         SUBMIT_CMD = 'sbatch'
+    elif (machine[:4]=="cdl5" or machine[:4]=="cdl6"):
+        machine = "tds"
+        SUBMIT_CMD = 'sbatch'
+        MATRIX_FILE_TEMPLATE = """tests/tds_cases.txt__SEP2__# test matrix for tds
+
+Test		Directory     NB_CORES        ELLAPSED_TIME            EXECUTABLE
+
+# test test1
+
+#Code_test1_512	test1          512             1:10:00         ../../src/code.x.y.z/bin/code
+#Code_test1_256	test1          256             3:10:00         ../../src/code.x.y.z/bin/code
+#Code_test1_128	test1          128             3:10:00         ../../src/code.x.y.z/bin/code
+
+__SEP1__tests/test1/job.tds.template__SEP2__#!/bin/bash
+#SBATCH --job-name=__Test__
+#SBATCH --output=job.out
+#SBATCH --error=job.err
+#SBATCH --ntasks=__NB_CORES__
+#SBATCH --time=__ELLAPSED_TIME__
+
+cd __STARTING_DIR__ 
+echo ======== start ==============
+date
+echo ======== start ==============
+aprun -n __NB_CORES__   __EXECUTABLE__
+echo ======== end ==============
+date
+echo ======== end ==============
+"""
     else:
+        print "[WARNING]  machine /%s/ unknowwn : using sh to submit  " % machine
         machine = "unknown"
         SUBMIT_CMD = 'sh'
 
@@ -507,13 +537,9 @@ def list_jobs_and_get_time(path=".",level=0,timing=False,dir_already_printed={},
                 proc_match = p.group(1)
               else:
                 proc_match = "???"
-            ktf_post_processing_output=""
-            if os.path.isfile(path + "/ktf_post") :
-              if DEBUG:
-                print "[list_jobs_and_get_time] post processing : %s " % (path+"/ktf_post")
-              ktf_post_processing_output = os.popen("cd %s; . ktf_post" % path).read()[:-1];
-            print "\t\t%10s s \t %s \t %5s %4s " % ( timing_result, ktf_post_processing_output, proc_match, case_match)
+            print "\t\t%10s s \t %5s %s  " % ( timing_result, proc_match, case_match)
 
+      
       for d in dirs :
         if not(d in [".git","src"]):
           path_new = path + "/" + d
