@@ -9,6 +9,7 @@ import time
 import subprocess
 import re
 import copy
+import shlex
 
 DEBUG                = 0
 FAKE                 = False
@@ -138,7 +139,7 @@ def get_machine():
     user_message("","socket.gethostname=/%s/" % machine)
     
     if (machine[:4]=="fen1" or machine[:4]=="fen2"):
-        machine = "shaheen"
+        machine = "shaheen1"
 #        SUBMIT_CMD = '/opt/share/altd/1.0.1/alias/rerouting/llsubmit'
         SUBMIT_CMD = 'llsubmit'
         MATRIX_FILE_TEMPLATE = """tests/shaheen_cases.txt__SEP2__# test matrix for shaheen
@@ -187,10 +188,10 @@ echo ======== end ==============
     elif (machine[:5]=="vhn11"):
         machine = "fujitsu"
         SUBMIT_CMD = 'sbatch'
-    elif (machine[:4]=="cdl5" or machine[:4]=="cdl6"):
-        machine = "tds"
+    elif (machine[:3]=="cdl"):
+        machine = "shaheen"
         SUBMIT_CMD = 'sbatch'
-        MATRIX_FILE_TEMPLATE = """tests/tds_cases.txt__SEP2__# test matrix for tds
+        MATRIX_FILE_TEMPLATE = """tests/shaheen_cases.txt__SEP2__# test matrix for shaheen II
 
 Test		Directory     NB_CORES        ELLAPSED_TIME            EXECUTABLE
 
@@ -200,7 +201,7 @@ Test		Directory     NB_CORES        ELLAPSED_TIME            EXECUTABLE
 #Code_test1_256	test1          256             3:10:00         ../../src/code.x.y.z/bin/code
 #Code_test1_128	test1          128             3:10:00         ../../src/code.x.y.z/bin/code
 
-__SEP1__tests/test1/job.tds.template__SEP2__#!/bin/bash
+__SEP1__tests/test1/job.shaheen.template__SEP2__#!/bin/bash
 #SBATCH --job-name=__Test__
 #SBATCH --output=job.out
 #SBATCH --error=job.err
@@ -614,7 +615,7 @@ def run():
 
   print
   
-  now = time.strftime('%y%m%d-%H:%M:%S',time.localtime())
+  now = time.strftime('%y%m%d-%H_%M_%S',time.localtime())
   tags_ok = False
   mandatory_fields = ["Test", "Directory"]
   if not(SUBMIT_CMD):
@@ -645,6 +646,7 @@ def run():
         print "tags_names:",tags_names
   
       tags = line.split(" ")
+      tags = shlex.split(line)
       ts = copy.deepcopy(tags_names)
       tag = {}
       if DEBUG:
