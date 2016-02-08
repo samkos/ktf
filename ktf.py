@@ -10,6 +10,8 @@ import subprocess
 import re
 import copy
 import shlex
+import pickle
+import getpass
 
 DEBUG                = 0
 FAKE                 = False
@@ -22,6 +24,9 @@ SUBMIT_CMD           = False
 ALL                  = False
 
 TESTS = {}
+
+WORKSPACE_FILE = "workspace.pickle"
+
 
 KTF_PATH = os.getenv("KTF_PATH")
 if not(KTF_PATH):
@@ -65,6 +70,8 @@ handler = logging.handlers.RotatingFileHandler(
      log_file_name, maxBytes = 20000000,  backupCount = 5)
 handler.setFormatter(formatter)
 loggerror.addHandler(handler)
+
+
 
 
 #########################################################################
@@ -129,7 +136,17 @@ class ktf:
 
   def __init__(self):
     self.TIME = False
-    self.ERRORS = { -1:'CANCELED'}
+    self.JOB_ID = {}
+    if os.path.exists(WORKSPACE_FILE):
+      self.load_workspace()
+      
+  def ERROR_MSG(self,i):
+
+    if i==-1:
+      return 'CANCELLED'
+    elif i==-4:
+      return 'RUNNING'
+    return 'UNKNOWN'
     
   #########################################################################
   # get machine name and alias 
@@ -345,6 +362,36 @@ class ktf:
       if not(BUILD) and not(self.TIME) and not(SUBMIT):
         self.usage("at least --build, --submit or --time should be asked")
 
+
+
+
+  #########################################################################
+  # save_workspace
+  #########################################################################
+
+  def save_workspace(self,workspace_file=WORKSPACE_FILE):
+      
+      #print "saving variables to file "+workspace_file
+      
+      f_workspace = open( workspace_file, "wb" )
+      pickle.dump(self.JOB_ID    ,f_workspace)
+      f_workspace.close()
+
+  #########################################################################
+  # load_workspace
+  #########################################################################
+
+  def load_workspace(self,workspace_file = WORKSPACE_FILE ):
+
+      #print "loading variables from file "+workspace_file
+
+      f_workspace = open( workspace_file, "rb" )
+      self.JOB_ID    = pickle.load(f_workspace)
+      f_workspace.close()
+
+
+
+
   #########################################################################
   # os.system wrapped to enable Trace if needed
   #########################################################################
@@ -487,6 +534,36 @@ class ktf:
 
     sys.exit(0)
 
+
+#########################################################################
+  # get current job status
+  #########################################################################
+  def get_current_jobs_status(self):
+
+    self.existing_jobs = {}
+
+    my_username = getpass.getuser()
+    my_jobs = []
+    
+    cmd = ["squeue","-l","-u",my_username]
+
+    output = subprocess.check_output(cmd)
+    
+    for l in output.split("\n"):
+      if l.find(my_username)>-1:
+        l = re.sub(r'^\s+', "",l)
+        l = re.sub(r'\s+', " ",l)
+        f = l.split(" ")
+        fj = f[0].split("_")
+        job_id = fj[0]
+        if len(fj)>1:
+          job_range = fj[1]
+        else:
+          job_range=""
+        job_status = f[4]
+        self.existing_jobs[job_id] = job_status
+
+
   #########################################################################
   # list all available job.out and print ellapsed time
   #########################################################################
@@ -585,6 +662,8 @@ class ktf:
   def list_jobs_and_get_time(self,path=".",level=0,timing=False,
                              dir_already_printed={},timing_results={},current_dir_match=None):
 
+    self.get_current_jobs_status()
+
     timming_results = self.scan_jobs_and_get_time(path,level,timing,dir_already_printed,
                                              timing_results,current_dir_match)
 
@@ -596,7 +675,7 @@ class ktf:
     print "%45s" % "Runs",
 
     for run in timing_results["runs"]:
-      print "%8s" % run.replace("-","").replace("_","")[-8:],
+      print "%9s" % run.replace("-","").replace("_","")[-8:],
     print
     
     for case in timing_results["cases"]:
@@ -614,20 +693,20 @@ class ktf:
             if k in timing_results.keys():
               t = timing_results[k]
               if t>-1:
-                print "%8s" % t,
-              elif t==-1:
-                print "%8s" % self.ERRORS[t],
+                print "%9s" % t,
+              else:
+                print "%9s" % self.ERROR_MSG(t),
               nb_tests = nb_tests + 1
               if not(run in total_time.keys()):
                 total_time[run]=0
               if t>0:
                 total_time[run] += timing_results[k]
             else:
-              print "%8s" % "N/A", 
+              print "%9s" % "-", 
           print "%3s tests %s" % (nb_runs,k0)
     print "%45s" % "total time",
     for run in timing_results["runs"]:
-      print "%8s" % total_time[run],
+      print "%9s" % total_time[run],
     print "%3s" % nb_tests,'tests completed'
       
   #########################################################################
@@ -636,6 +715,14 @@ class ktf:
 
 
   def get_timing(self,path):
+
+    # 1) checking if job is still running
+    job_dir = os.path.abspath(os.path.dirname(path))
+    if job_dir in self.JOB_ID.keys():
+      job_id = self.JOB_ID[job_dir]
+      if job_id in self.existing_jobs.keys():
+        return -4
+
     fic = open(path)
     t = "__NEWLINE__".join(fic.readlines())
     fic.close()
@@ -673,10 +760,10 @@ class ktf:
         print "[get_timing] Exception type 2"
         except_print()
       ellapsed_time=-2
-    return self.user_timing(os.path.dirname(path),ellapsed_time)
+    return self.user_defined_timing(os.path.dirname(path),ellapsed_time)
 
 
-  def user_timing(self,dir,ellapsed_time):
+  def user_defined_timing(self,dir,ellapsed_time):
     if DEBUG:
       print dir
     return ellapsed_time
@@ -782,12 +869,22 @@ class ktf:
         job_file=self.substitute(dest_directory,tag)
 
         if job_file:
-          cmd = "cd %s; %s %s > job.submit.out 2>&1 " % \
+          cmd = "cd %s; %s %s > job.submit.out 2> job.submit.err " % \
               (os.path.dirname(job_file), submit_command,\
                  os.path.basename(job_file))
           if SUBMIT:
             print "\tsubmitting job %s " % job_file
             self.wrapped_system(cmd,comment="submitting job %s" % job_file)
+            output_file = "%s/job.submit.out" % os.path.dirname(job_file)
+            error_file = "%s/job.submit.err" % os.path.dirname(job_file)
+            if os.path.exists(error_file):
+              if os.path.getsize(error_file)>0:
+                print "\n\tError... something went wrong when submitting job %s " % job_file
+                sys.exit(1)
+            f = open(output_file,"r").readline()[:-1].split(" ")[-1]
+            self.JOB_ID[os.path.abspath(os.path.dirname(job_file))] = f
+            print f
+                
           else:
             print "\tshould submit job %s (if --submit added) " % job_file
           #print cmd
@@ -795,7 +892,9 @@ class ktf:
           print "\t\tWarning... no job file found for machine %s in test directory %s " % \
                 (MACHINE,dest_directory)
         print
-        
+
+    self.save_workspace()
+    
 if __name__ == "__main__":
     K = ktf()
     K.welcome_message()
