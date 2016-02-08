@@ -490,9 +490,14 @@ def scan_jobs_and_get_time(path=".",level=0,timing=False,
                            dir_already_printed={},timing_results={},current_dir_match=None):
   global ALL
 
-
+  if len(timing_results) == 0:
+    timing_results["procs"] = []
+    timing_results["cases"] = []
+    timing_results["runs"] = []
+    
   if level==0:
-    print "\n\tBenchmarks Availables: " 
+    print "\n\tBenchmarks Availables: "
+
   
   if DEBUG>3:
     print "\n[list_jobs_and_get_time] scanning ",path," for timings=",timing
@@ -541,12 +546,19 @@ def scan_jobs_and_get_time(path=".",level=0,timing=False,
                 proc_match = p.group(1)
               else:
                 proc_match = "???"
-            k = "%s.%s" % (proc_match, case_match)
+            k = "%s.%s.%s" % (dir_match,proc_match, case_match)
+
             if not(k in timing_results.keys()):
               timing_results[k] = []
-              
-            timing_results[k].append("%7s" % timing_result)
-            print "\t\t%10s s \t %5s %40s  %30s" % ( timing_result, proc_match, case_match, " ".join( timing_results[k]))
+            if not(dir_match in timing_results["runs"]):
+              timing_results["runs"].append(dir_match)
+            if not(proc_match in timing_results["procs"]):
+              timing_results["procs"].append(proc_match)
+            if not(case_match in timing_results["cases"]):
+                timing_results["cases"].append(case_match)
+  
+            timing_results[k]=timing_result
+            print "\t\t%10s s \t %5s %40s " % ( timing_result, proc_match, case_match)
 
       
       for d in dirs :
@@ -564,10 +576,17 @@ def list_jobs_and_get_time(path=".",level=0,timing=False,
   timming_results = scan_jobs_and_get_time(path,level,timing,dir_already_printed,
                                            timing_results,current_dir_match)
 
-  for k in timing_results.keys():
-    print "%45s" % k," ".join( timing_results[k])
-            
-
+  for case in timing_results["cases"]:
+    for proc in timing_results["procs"]:
+      k = "%s.%s" % (proc, case)
+      print "%45s" % k,
+      for run in timing_results["runs"]:
+        k = "%s.%s.%s" % (run,proc,case)
+        if k in timing_results.keys():
+          print "%7s" % timing_results[k], 
+        else:
+          print "%7s" % "-", 
+      print
 
     
 #########################################################################
