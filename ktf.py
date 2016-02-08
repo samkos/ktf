@@ -542,6 +542,12 @@ class ktf:
               dir_already_printed[dir_match] = False
               case_match = path_new.replace(dir_match+"/","")
               case_match = case_match.replace("/job.out","")
+              case_match = case_match.replace("32k","32768")
+              case_match = case_match.replace("16k","16384")
+              case_match = case_match.replace("8k","8192")
+              case_match = case_match.replace("4k","4096")
+              case_match = case_match.replace("2k","2048")
+              case_match = case_match.replace("1k","1024")
               p = re.match(r".*_(\d+).*",case_match)
               if p:
                 proc_match = p.group(1)
@@ -660,6 +666,11 @@ class ktf:
         print "[get_timing] Exception type 2"
         except_print()
       ellapsed_time=-2
+    return self.user_timing(os.path.dirname(path),ellapsed_time)
+
+
+  def user_timing(self,dir,ellapsed_time):
+    print dir
     return ellapsed_time
 
 
