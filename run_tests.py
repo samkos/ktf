@@ -485,7 +485,9 @@ def create_test_matrix_template():
 # list all available job.out and print ellapsed time
 #########################################################################
 
-def list_jobs_and_get_time(path=".",level=0,timing=False,dir_already_printed={},current_dir_match=None):
+
+def list_jobs_and_get_time(path=".",level=0,timing=False,
+                           dir_already_printed={},timing_results={},current_dir_match=None):
   global ALL
 
 
@@ -502,6 +504,7 @@ def list_jobs_and_get_time(path=".",level=0,timing=False,dir_already_printed={},
     return
     
   dirs = sorted(os.listdir(path))
+
 
   if len(dirs):
     #if level == SCANNING_FROM :
@@ -538,14 +541,19 @@ def list_jobs_and_get_time(path=".",level=0,timing=False,dir_already_printed={},
                 proc_match = p.group(1)
               else:
                 proc_match = "???"
-            print "\t\t%10s s \t %5s %s  " % ( timing_result, proc_match, case_match)
+            k = "%s.%s" % (proc_match, case_match)
+            if not(k in timing_results.keys()):
+              timing_results[k] = []
+              
+            timing_results[k].append("%5s" % timing_result)
+            print "\t\t%30s s \t %5s %s  " % (" ".join( timing_results[k]), proc_match, case_match)
 
       
       for d in dirs :
         if not(d in [".git","src"]):
           path_new = path + "/" + d
           if os.path.isdir(path_new):
-            list_jobs_and_get_time(path_new,level+1,timing,dir_already_printed,current_dir_match)
+            list_jobs_and_get_time(path_new,level+1,timing,dir_already_printed,timing_results,current_dir_match)
 
 
 
