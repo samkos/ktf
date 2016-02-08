@@ -129,7 +129,8 @@ class ktf:
 
   def __init__(self):
     self.TIME = False
-
+    self.ERRORS = { -1:'CANCELED'}
+    
   #########################################################################
   # get machine name and alias 
   #########################################################################
@@ -536,7 +537,7 @@ class ktf:
             path_new = path + "/" + d
 
             timing_result = self.get_timing(path_new)
-            if timing_result>-1 or ALL:
+            if True:
               if not(dir_match in dir_already_printed.keys()):
                 print "%s- %s " % ("\t"+"   "*(level),dir_match)
               dir_already_printed[dir_match] = False
@@ -591,6 +592,7 @@ class ktf:
     total_time = {}
     timing_results["procs"].sort(key=int)
 
+    print
     print "%45s" % "Runs",
 
     for run in timing_results["runs"]:
@@ -610,13 +612,18 @@ class ktf:
           for run in timing_results["runs"]:
             k = "%s.%s.%s" % (run,proc,case)
             if k in timing_results.keys():
-              print "%8s" % timing_results[k],
+              t = timing_results[k]
+              if t>-1:
+                print "%8s" % t,
+              elif t==-1:
+                print "%8s" % self.ERRORS[t],
               nb_tests = nb_tests + 1
               if not(run in total_time.keys()):
                 total_time[run]=0
-              total_time[run] += timing_results[k]
+              if t>0:
+                total_time[run] += timing_results[k]
             else:
-              print "%8s" % "-", 
+              print "%8s" % "N/A", 
           print "%3s tests %s" % (nb_runs,k0)
     print "%45s" % "total time",
     for run in timing_results["runs"]:
@@ -670,7 +677,8 @@ class ktf:
 
 
   def user_timing(self,dir,ellapsed_time):
-    print dir
+    if DEBUG:
+      print dir
     return ellapsed_time
 
 

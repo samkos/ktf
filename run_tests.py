@@ -1,8 +1,17 @@
 from ktf import *
-
+import glob
 
 class my_ktf(ktf):
-  pass
+
+  def __init__(self):
+    ktf.__init__(self)
+    
+  def user_defined_timing(self,dir,ellapsed_time):
+    if DEBUG or True:
+      print dir
+    for f in glob.glob('*/results*log'):
+      print f
+    return ellapsed_time
 
 if __name__ == "__main__":
     K = my_ktf()
