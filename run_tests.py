@@ -576,18 +576,27 @@ def list_jobs_and_get_time(path=".",level=0,timing=False,
   timming_results = scan_jobs_and_get_time(path,level,timing,dir_already_printed,
                                            timing_results,current_dir_match)
 
+  nb_tests = 0
+  timing_results["procs"].sort(key=int)
   for case in timing_results["cases"]:
     for proc in timing_results["procs"]:
-      k = "%s.%s" % (proc, case)
-      print "%45s" % k,
+      k0 = "%s.%s" % (proc, case)
+      nb_runs = 0
       for run in timing_results["runs"]:
         k = "%s.%s.%s" % (run,proc,case)
         if k in timing_results.keys():
-          print "%7s" % timing_results[k], 
-        else:
-          print "%7s" % "-", 
-      print
-
+          nb_runs += 1
+      if nb_runs:
+        print "%45s" % k0,
+        for run in timing_results["runs"]:
+          k = "%s.%s.%s" % (run,proc,case)
+          if k in timing_results.keys():
+            print "%7s" % timing_results[k],
+            nb_tests = nb_tests + 1
+          else:
+            print "%7s" % "-", 
+        print "%3s tests %s" % (nb_runs,k0)
+  print nb_tests,'tests completed'
     
 #########################################################################
 # calculation of ellapsed time based on values dumped in job.out
