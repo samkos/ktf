@@ -137,6 +137,12 @@ class ktf:
   def __init__(self):
     self.TIME = False
     self.JOB_ID = {}
+    self.JOB_DIR = {}
+    self.JOB_STATUS = {}
+    self.timing_results = {}
+    self.timing_results["procs"] = []
+    self.timing_results["cases"] = []
+    self.timing_results["runs"] = []
     if os.path.exists(WORKSPACE_FILE):
       self.load_workspace()
       
@@ -146,6 +152,7 @@ class ktf:
       return 'CANCELLED'
     elif i==-4:
       return 'RUNNING'
+    print '\nERreur received : /%s/' % i
     return 'UNKNOWN'
     
   #########################################################################
@@ -375,6 +382,7 @@ class ktf:
       
       f_workspace = open( workspace_file, "wb" )
       pickle.dump(self.JOB_ID    ,f_workspace)
+      pickle.dump(self.JOB_STATUS,f_workspace)
       f_workspace.close()
 
   #########################################################################
@@ -387,9 +395,12 @@ class ktf:
 
       f_workspace = open( workspace_file, "rb" )
       self.JOB_ID    = pickle.load(f_workspace)
+      self.JOB_STATUS = pickle.load(f_workspace)
       f_workspace.close()
 
-
+      for job_dir in self.JOB_ID.keys():
+        job_id  = self.JOB_ID[job_dir]
+        self.JOB_DIR[job_id] = job_dir
 
 
   #########################################################################
@@ -488,28 +499,6 @@ class ktf:
 
 
   #########################################################################
-  # return sub directories
-  #########################################################################
-
-  def list_dirs(self,directory,what):
-      job_file = None
-
-      if DEBUG:
-          print "searching in ",directory
-
-
-      f = []
-      d = []
-      for (dirpath, dirnames, filenames) in os.walk(directory):
-        f.extend(filenames)
-        d.extend(dirnames)
-
-      if what=="DIR":
-        return d
-      if what=="FILE":
-        return f
-
-  #########################################################################
   # create test template (matrix and job)
   #########################################################################
   def create_test_matrix_template(self):
@@ -535,34 +524,40 @@ class ktf:
     sys.exit(0)
 
 
-#########################################################################
-  # get current job status
+  #########################################################################
+  # get status of all jobs ever launched
   #########################################################################
   def get_current_jobs_status(self):
 
-    self.existing_jobs = {}
+    for j in self.JOB_DIR.keys():
+      if DEBUG:
+        print j,self.JOB_DIR[j],self.job_status(j),
+      if self.job_status(j) in ("CANCELLED","COMPLETED"):
+        print 'not asking for ',j
+      else:
+        cmd = ["sacct","-j","%s" % j ]
+        output = subprocess.check_output(cmd)
+        for l in output.split("\n"):
+          try:
+            status=l.split(" ")[-8]
+            if status in ('PENDING','RUNNING','COMPLETED','CANCELLED'):
+              print status,j
+              self.JOB_STATUS[j] = self.JOB_STATUS[self.JOB_DIR[j]] = status
+          except:
+            pass
+      self.save_workspace()
+      
+  #########################################################################
+  # get current job status
+  #########################################################################
+  def job_status(self,id_or_file):
 
-    my_username = getpass.getuser()
-    my_jobs = []
-    
-    cmd = ["squeue","-l","-u",my_username]
+    for key in [id_or_file,os.path.abspath(os.path.dirname(id_or_file))]:
+      if key in self.JOB_STATUS.keys():
+        return self.JOB_STATUS[key]
+    return "UNKNOWN"
 
-    output = subprocess.check_output(cmd)
-    
-    for l in output.split("\n"):
-      if l.find(my_username)>-1:
-        l = re.sub(r'^\s+', "",l)
-        l = re.sub(r'\s+', " ",l)
-        f = l.split(" ")
-        fj = f[0].split("_")
-        job_id = fj[0]
-        if len(fj)>1:
-          job_range = fj[1]
-        else:
-          job_range=""
-        job_status = f[4]
-        self.existing_jobs[job_id] = job_status
-
+   
 
   #########################################################################
   # list all available job.out and print ellapsed time
@@ -570,13 +565,8 @@ class ktf:
 
 
   def scan_jobs_and_get_time(self,path=".",level=0,timing=False,
-                             dir_already_printed={},timing_results={},current_dir_match=None):
+                             dir_already_printed={}):
     global ALL
-
-    if len(timing_results) == 0:
-      timing_results["procs"] = []
-      timing_results["cases"] = []
-      timing_results["runs"] = []
       
     if level==0:
       print "\n\tBenchmarks Availables: "
@@ -599,11 +589,11 @@ class ktf:
       #  print "%s%d %s Availables: " % ("\t"*(level+1),len(dirs),ArboNames[level])
       if DEBUG>3:
         print level,dirs
-      for d in [ "job.out" ]:
+      for d in [ "job.submit.out" ]:
         if os.path.exists(path + "/" + d) :
           if os.path.isfile(path + "/" + d) :
             if DEBUG:
-              print "[list_jobs_and_get_time] candidate : %s " % (path+"/"+"job.out")
+              print "[list_jobs_and_get_time] candidate : %s " % (path+"/"+"job.submit.out")
             # formatting the dirname
             p = re.match(r"(.*tests_.*)/.*",path)
             if p:
@@ -613,85 +603,82 @@ class ktf:
 
             path_new = path + "/" + d
 
-            timing_result = self.get_timing(path_new)
-            if True:
-              if not(dir_match in dir_already_printed.keys()):
-                print "%s- %s " % ("\t"+"   "*(level),dir_match)
-              dir_already_printed[dir_match] = False
-              case_match = path_new.replace(dir_match+"/","")
-              case_match = case_match.replace("/job.out","")
-              case_match = case_match.replace("32k","32768")
-              case_match = case_match.replace("16k","16384")
-              case_match = case_match.replace("8k","8192")
-              case_match = case_match.replace("4k","4096")
-              case_match = case_match.replace("2k","2048")
-              case_match = case_match.replace("1k","1024")
-              p = re.match(r".*_(\d+).*",case_match)
+            timing_result = self.get_timing(path+"/job.out")
+            
+            if not(dir_match in dir_already_printed.keys()):
+              print "%s- %s " % ("\t"+"   "*(level),dir_match)
+            dir_already_printed[dir_match] = False
+            case_match = path_new.replace(dir_match+"/","")
+            case_match = case_match.replace("/job.submit.out","")
+            case_match = case_match.replace("32k","32768")
+            case_match = case_match.replace("16k","16384")
+            case_match = case_match.replace("8k","8192")
+            case_match = case_match.replace("4k","4096")
+            case_match = case_match.replace("2k","2048")
+            case_match = case_match.replace("1k","1024")
+            p = re.match(r".*_(\d+).*",case_match)
+            if p:
+              proc_match = p.group(1)
+            else:
+              p = re.match(r"(\d+).*$",case_match)
               if p:
                 proc_match = p.group(1)
               else:
-                p = re.match(r"(\d+).*$",case_match)
-                if p:
-                  proc_match = p.group(1)
-                else:
-                  proc_match = "???"
-              k = "%s.%s.%s" % (dir_match,proc_match, case_match)
+                proc_match = "???"
+            k = "%s.%s.%s" % (dir_match,proc_match, case_match)
 
-              if not(k in timing_results.keys()):
-                timing_results[k] = []
-              if not(dir_match in timing_results["runs"]):
-                timing_results["runs"].append(dir_match)
-              if not(proc_match in timing_results["procs"]): 
-                timing_results["procs"].append(proc_match)
-              if not(case_match in timing_results["cases"]):
-                  timing_results["cases"].append(case_match)
+            if not(k in self.timing_results.keys()):
+              self.timing_results[k] = []
+            if not(dir_match in self.timing_results["runs"]):
+              self.timing_results["runs"].append(dir_match)
+            if not(proc_match in self.timing_results["procs"]): 
+              self.timing_results["procs"].append(proc_match)
+            if not(case_match in self.timing_results["cases"]):
+              self.timing_results["cases"].append(case_match)
     
-              timing_results[k]=timing_result
-              print "\t\t%10s s \t %5s %40s " % ( timing_result, proc_match, case_match)
+            self.timing_results[k]=timing_result
+            print "\t\t%10s s \t %5s %40s " % ( timing_result, proc_match, case_match)
 
         
         for d in dirs :
           if not(d in [".git","src"]):
             path_new = path + "/" + d
             if os.path.isdir(path_new):
-              timing_results = self.scan_jobs_and_get_time(path_new,level+1,timing,dir_already_printed,timing_results,current_dir_match)
-
-        return timing_results
+              self.scan_jobs_and_get_time(path_new,level+1,timing,dir_already_printed)
 
 
   def list_jobs_and_get_time(self,path=".",level=0,timing=False,
-                             dir_already_printed={},timing_results={},current_dir_match=None):
+                             dir_already_printed={}):
 
     self.get_current_jobs_status()
 
-    timming_results = self.scan_jobs_and_get_time(path,level,timing,dir_already_printed,
-                                             timing_results,current_dir_match)
+    self.scan_jobs_and_get_time(path,level,timing,dir_already_printed)
 
     nb_tests = 0
     total_time = {}
-    timing_results["procs"].sort(key=int)
+    self.timing_results["procs"].sort(key=int)
 
     print
     print "%45s" % "Runs",
 
-    for run in timing_results["runs"]:
+    for run in self.timing_results["runs"]:
       print "%9s" % run.replace("-","").replace("_","")[-8:],
     print
     
-    for case in timing_results["cases"]:
-      for proc in timing_results["procs"]:
+    for case in self.timing_results["cases"]:
+      for proc in self.timing_results["procs"]:
         k0 = "%s.%s" % (proc, case)
         nb_runs = 0
-        for run in timing_results["runs"]:
+        for run in self.timing_results["runs"]:
           k = "%s.%s.%s" % (run,proc,case)
-          if k in timing_results.keys():
+          if k in self.timing_results.keys():
             nb_runs += 1
         if nb_runs:
           print "%45s" % k0,
-          for run in timing_results["runs"]:
+          for run in self.timing_results["runs"]:
             k = "%s.%s.%s" % (run,proc,case)
-            if k in timing_results.keys():
-              t = timing_results[k]
+            if k in self.timing_results.keys():
+              t = self.timing_results[k]
               if t>-1:
                 print "%9s" % t,
               else:
@@ -700,12 +687,15 @@ class ktf:
               if not(run in total_time.keys()):
                 total_time[run]=0
               if t>0:
-                total_time[run] += timing_results[k]
+                try:
+                  total_time[run] += self.timing_results[k]
+                except:
+                  pass
             else:
               print "%9s" % "-", 
           print "%3s tests %s" % (nb_runs,k0)
     print "%45s" % "total time",
-    for run in timing_results["runs"]:
+    for run in self.timing_results["runs"]:
       print "%9s" % total_time[run],
     print "%3s" % nb_tests,'tests completed'
       
@@ -717,11 +707,12 @@ class ktf:
   def get_timing(self,path):
 
     # 1) checking if job is still running
-    job_dir = os.path.abspath(os.path.dirname(path))
-    if job_dir in self.JOB_ID.keys():
-      job_id = self.JOB_ID[job_dir]
-      if job_id in self.existing_jobs.keys():
-        return -4
+    status = self.job_status(path)
+    if status in ("PENDING"):
+      return status
+
+    if not(os.path.exists(path)):
+      return "NotYet/"+status[:2]
 
     fic = open(path)
     t = "__NEWLINE__".join(fic.readlines())
@@ -733,7 +724,12 @@ class ktf:
 
     try:
       start_timing = t.split("======== start ==============")
+      #print len(start_timing),start_timing
+      if len(start_timing)<2:
+        return "NOST/"+status[:2]
       end_timing = t.split("======== end ==============")
+      if len(end_timing)<2:
+        return "NOEND/"+status[:2]
       from_date = to_date = "None"
       if len(start_timing)>1 and len(end_timing)>1:
         from_date = start_timing[1].replace("__NEWLINE__","").replace("\n","").split(" ")
@@ -754,12 +750,14 @@ class ktf:
           print "[get_timing] Exception type 1"
           if DEBUG>1:
             except_print()
-        ellapsed_time = -1
+        ellapsed_time = "NOGOOD"
     except:
       if DEBUG:
         print "[get_timing] Exception type 2"
         except_print()
       ellapsed_time=-2
+    if isinstance(ellapsed_time,basestring):
+      return ellapsed_time
     return self.user_defined_timing(os.path.dirname(path),ellapsed_time)
 
 
