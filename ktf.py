@@ -159,7 +159,7 @@ class ktf:
       machine = socket.gethostname()
       self.user_message("","socket.gethostname=/%s/" % machine)
       
-      if (machine[:3]=="cdl" or machine=="kw14425"):
+      if (machine[:3]=="cdl" or True):
           machine = "shaheen"
           self.SUBMIT_CMD = 'sbatch'
           self.MATRIX_FILE_TEMPLATE = """tests/shaheen_cases.txt__SEP2__# test matrix for shaheen II
@@ -183,7 +183,7 @@ class ktf:
   echo ======== start ==============
   date
   echo ======== start ==============
-  aprun -n __NB_CORES__   __EXECUTABLE__
+  srun -o 0 --ntasks=__NB_CORES__  --cpus-per-task=1 --hint=nomultithread --ntasks-per-node=32 --ntasks-per-socket=16 --ntasks-per-core=1 --cpu_bind=cores   __EXECUTABLE__
   echo ======== end ==============
   date
   echo ======== end ==============
@@ -218,7 +218,7 @@ class ktf:
       self.MY_HOSTNAME_FULL_NAME = socket.gethostname()
 
       print """                     #########################################
-                     #   Welcome to KSL Test Framework 0.2!  #
+                     #   Welcome to KSL Test Framework 0.3!  #
                      #########################################
        """
       print "\trunning on %s (%s) " %(self.MY_HOSTNAME_FULL_NAME,self.MY_HOSTNAME)
