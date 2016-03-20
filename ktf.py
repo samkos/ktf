@@ -164,29 +164,83 @@ class ktf:
           self.SUBMIT_CMD = 'sbatch'
           self.MATRIX_FILE_TEMPLATE = """tests/shaheen_cases.txt__SEP2__# test matrix for shaheen II
 
-  Test		Directory     NB_CORES        ELLAPSED_TIME            EXECUTABLE
+Test		   NB_CORES        ELLAPSED_TIME            
 
-  # test test1
+# Global variables
 
-  #Code_test1_512	test1          512             1:10:00         ../../src/code.x.y.z/bin/code
-  #Code_test1_256	test1          256             3:10:00         ../../src/code.x.y.z/bin/code
-  #Code_test1_128	test1          128             3:10:00         ../../src/code.x.y.z/bin/code
+#KTF SLURM_ACCOUNT = kxxxx
+#KTF EXECUTABLE = my_code
+#KTF Directory = test1
 
-  __SEP1__tests/test1/job.shaheen.template__SEP2__#!/bin/bash
-  #SBATCH --job-name=__Test__
-  #SBATCH --output=job.out
-  #SBATCH --error=job.err
-  #SBATCH --ntasks=__NB_CORES__
-  #SBATCH --time=__ELLAPSED_TIME__
 
-  cd __STARTING_DIR__ 
-  echo ======== start ==============
-  date
-  echo ======== start ==============
-  srun -o 0 --ntasks=__NB_CORES__  --cpus-per-task=1 --hint=nomultithread --ntasks-per-node=32 --ntasks-per-socket=16 --ntasks-per-core=1 --cpu_bind=cores   __EXECUTABLE__
-  echo ======== end ==============
-  date
-  echo ======== end ==============
+# test test1
+
+#Code_test1_512	     512             1:10:00         
+#Code_test1_256	     256             3:10:00   
+#Code_test1_128	     128             3:10:00   
+
+__SEP1__run_tests.py*__SEP2__
+from ktf import *
+import glob
+
+class my_ktf(ktf):
+
+  def __init__(self):
+    ktf.__init__(self)
+
+
+
+  def my_timing(self,dir,ellapsed_time,status):
+
+    if self.DEBUG:
+      print dir,status
+    for filename in glob.glob(dir+'/*/results*log'):
+      try:
+        f = open(filename).readlines()
+        if len(f)<2:
+          if status=="COMPLETED":
+            return "?%s/%s" %(ellapsed_time,status[:2])
+          else:
+            return "NOLOG/"+status[:2] 
+        l = f[-2][:-1]
+        l = l.replace("Total time :","")
+        if self.DEBUG:
+          print l,filename
+        return int(float(l))
+      except:
+        dump_exception('user_defined_timing')
+        job_out = "___".join(open(dir+'/job.out').readlines())
+        if job_out.find("CANCELLED")>-1:
+          return "CANCELLED/"+status[:2]
+        if self.DEBUG:
+          print "pb on ",filename
+        return "PB/"+status[:2]
+    return "!%s" % ellapsed_time
+
+if __name__ == "__main__":
+    K = my_ktf()
+    K.welcome_message()
+    K.parse()
+    if K.TIME:
+      K.list_jobs_and_get_time()
+    else:
+      K.run()
+__SEP1__tests/test1/job.shaheen.template__SEP2__#!/bin/bash
+#SBATCH --job-name=__Test__
+#SBATCH --output=job.out
+#SBATCH --error=job.err
+#SBATCH --ntasks=__NB_CORES__
+#SBATCH --time=__ELLAPSED_TIME__
+#SBATCH -A __SLURM_ACCOUNT__
+
+cd __STARTING_DIR__ 
+echo ======== start ==============
+date
+echo ======== start ==============
+srun -o 0 --ntasks=__NB_CORES__  --cpus-per-task=1 --hint=nomultithread --ntasks-per-node=32 --ntasks-per-socket=16 --ntasks-per-core=1 --cpu_bind=cores   __EXECUTABLE__
+echo ======== end ==============
+date
+echo ======== end ==============
   """
       else:
           print "[WARNING]  machine /%s/ unknowwn : using sh to submit  " % machine
@@ -455,9 +509,15 @@ class ktf:
         dirname = os.path.dirname(filename)
         if not(os.path.exists(dirname)):
           self.wrapped_system("mkdir -p %s" % dirname,comment="creating dir %s" % dirname)
+        executable = False
+        if filename[-1]=="*":
+          filename = filename[:-1]
+          executable = True
         f = open(filename,"w")
         f.write(content)
         f.close()
+        if executable:
+          self.wrapped_system("chmod +x %s" % filename)
         self.user_message(msg="file %s created " % filename)
 
     sys.exit(0)
@@ -656,7 +716,7 @@ class ktf:
             k = "%s.%s.%s" % (run,proc,case)
             if k in self.timing_results.keys():
               t = self.timing_results[k]
-              shortcut = "%s%s" % (string.lowercase[nb_line-1],string.lowercase[nb_column-1])
+              shortcut = "%s%s" % (string.lowercase[nb_column-1],string.lowercase[nb_line-1])
               path = run+"/"+case
               if not(os.path.exists(path)):
                 path = path + " "
@@ -796,6 +856,17 @@ class ktf:
    return line
 
 
+  def additional_tag(self,line):
+    matchObj = re.match(r'^#KTF\s*(\S+|_)\s*=\s*(.*)\s*$',line)
+    if (matchObj):
+      # yes! saving it in direct_tag and go to next line
+      (t,v) = (matchObj.group(1), matchObj.group(2))
+      if self.DEBUG:
+        print "direct tag definitition : ",line
+      self.direct_tag[t] = v
+      return True
+    return False
+
   #########################################################################
   # generation of the jobs and submission of them if --build 
   #########################################################################
@@ -821,16 +892,23 @@ class ktf:
     
     if len(self.ONLY):
       print "the filter %s will be applied... Only following lines will be taken into account :"
+      self.direct_tag = {}
       for line in lines:
         line = self.clean_line(line)
+        if self.additional_tag(line):
+          continue
         if len(line)>0  and not (line[0]=='#'):
           if not(tags_ok):
             tags_ok=True
             continue
+          for k in self.direct_tag.keys():
+            line = line+" "+self.direct_tag[k]
+          if self.DEBUG:
+            print line
           matchObj = re.match("^.*"+self.ONLY+".*$",line)
           # prints all the tests that will be selected
           if (matchObj):
-            print "\t"+" ".join(line.split(" ")[:3])
+            print "\t"+"\t".join(line.split(" "))
       # askine to the user if he is ok or not
       input_var = raw_input("Is this correct ? (yes/no) ")
       if not(input_var == "yes"):
@@ -841,19 +919,13 @@ class ktf:
           
     # direct_tag contains the tags set through #KTF tag = value
     # it needs to be evaluated on the fly to apply right tag value at a given job
-    direct_tag = {}
+    self.direct_tag = {}
 
     # parsing of the input file starts...
     for line in lines:
       line = self.clean_line(line)
       # is it a tag enforced by #KTF directive?
-      matchObj = re.match(r'^#KTF\s*(\S+|_)\s*=\s*(.*)\s*$',line)
-      if (matchObj):
-        # yes! saving it in direct_tag and go to next line
-        (t,v) = (matchObj.group(1), matchObj.group(2))
-        if self.DEBUG:
-          print "direct tag definitition : ",line
-        direct_tag[t] = v
+      if self.additional_tag(line):
         continue
       
       # if line void or starting with '#', go to the next line
@@ -904,10 +976,10 @@ class ktf:
         print "tag:",tag
           
       # adding the tags enforced by a #KTF directive
-      tag.update(direct_tag)
+      tag.update(self.direct_tag)
 
       if self.DEBUG:
-        print direct_tag
+        print self.direct_tag
         print "tag after update:",tag
 
       # checking if mandatory tags are there
