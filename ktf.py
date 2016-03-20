@@ -908,7 +908,10 @@ echo ======== end ==============
           matchObj = re.match("^.*"+self.ONLY+".*$",line)
           # prints all the tests that will be selected
           if (matchObj):
-            print "\t"+"\t".join(line.split(" "))
+            print "\t",
+            for k in line.split(" "):
+              print "%20s " % k[:20],
+            print
       # askine to the user if he is ok or not
       input_var = raw_input("Is this correct ? (yes/no) ")
       if not(input_var == "yes"):
@@ -939,8 +942,11 @@ echo ======== end ==============
         tags_ok = True
         continue 
 
+      line2scan = line
+      for k in self.direct_tag.keys():
+        line2scan = line2scan+" "+self.direct_tag[k]
       # if job case are filtered, apply it, jumping to next line if filter not match
-      matchObj = re.match("^.*"+self.ONLY+".*$",line)
+      matchObj = re.match("^.*"+self.ONLY+".*$",line2scan)
       if not(matchObj):
         continue
 
