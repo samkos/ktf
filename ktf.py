@@ -146,6 +146,7 @@ class ktf:
     if os.path.exists(WORKSPACE_FILE):
       self.load_workspace()
       #print self.timing_results["runs"]
+    self.shortcuts='abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789'
       
   #########################################################################
   # get machine name and alias 
@@ -716,7 +717,7 @@ echo ======== end ==============
             k = "%s.%s.%s" % (run,proc,case)
             if k in self.timing_results.keys():
               t = self.timing_results[k]
-              shortcut = "%s%s" % (string.lowercase[nb_column-1],string.lowercase[nb_line-1])
+              shortcut = "%s%s" % (self.shortcuts[nb_column-1],self.shortcuts[nb_line-1])
               path = run+"/"+case
               if not(os.path.exists(path)):
                 path = path + " "
