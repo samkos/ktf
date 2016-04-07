@@ -74,11 +74,12 @@ class ktf(engine):
           self.MATRIX_FILE_TEMPLATE = """tests/%s""" % self.MACHINE + \
                                       """_cases.txt__SEP2__# test matrix for shaheen II
 
-Test		   NB_CORES        ELLAPSED_TIME            
+Test		   NB_TASKS        ELLAPSED_TIME            
 
 # Global variables
 
 #KTF SLURM_ACCOUNT = kxxxx
+#KTF PARTITION = workq
 #KTF EXECUTABLE = my_code
 #KTF Directory = test1
 
@@ -92,6 +93,8 @@ Test		   NB_CORES        ELLAPSED_TIME
 __SEP1__run_tests.py*__SEP2__
 from ktf import *
 import glob
+from env import *
+import math
 
 class my_ktf(ktf):
 
@@ -102,23 +105,19 @@ class my_ktf(ktf):
 
   def my_timing(self,dir,ellapsed_time,status):
 
-    if self.DEBUG:
-      print dir,status
-    for filename in glob.glob(dir+'/*/results*log'):
+    files = glob.glob(dir+'/job.out')
+    self.log_debug("dir===>%s<==,status=/%s/,len(files)=/%s/" % (dir,status,len(files)))
+    for filename in files:
       try:
-        f = open(filename).readlines()
-        if len(f)<2:
-          if status=="COMPLETED":
-            return "?%s/%s" %(ellapsed_time,status[:2])
-          else:
-            return "NOLOG/"+status[:2] 
-        l = f[-2][:-1]
-        l = l.replace("Total time :","")
-        if self.DEBUG:
-          print l,filename
-        return int(float(l))
+        res = greps("Total Time"   ,filename,-2)
+        self.log_debug('res=%s'% res)
+        Total_time        = int(float(res[0])*100.)/100. 
+        self.log_debug("Total Time: %s" % (Total_time))
+        #return "%s/%s" % (int(float(res[1])),int(float(res2[1]))) #,int(float(res3[1])
+        return "%s/%s" % (Total_time,status[:2])
+      
       except:
-        dump_exception('user_defined_timing')
+        self.dump_exception('user_defined_timing')
         job_out = "___".join(open(dir+'/job.out').readlines())
         if job_out.find("CANCELLED")>-1:
           return "CANCELLED/"+status[:2]
@@ -129,19 +128,25 @@ class my_ktf(ktf):
 
 if __name__ == "__main__":
     my_ktf()
-__SEP1__tests/test1/job."""+self.MACHINE+"""shaheen.template__SEP2__#!/bin/bash
+__SEP1__tests/test1/job."""+self.MACHINE+""".template__SEP2__#!/bin/bash
 #SBATCH --job-name=__Test__
 #SBATCH --output=job.out
 #SBATCH --error=job.err
-#SBATCH --ntasks=__NB_CORES__
+#SBATCH --ntasks=__NB_TASKS__
 #SBATCH --time=__ELLAPSED_TIME__
+#SBATCH --partition=__PARTITION__
 #SBATCH -A __SLURM_ACCOUNT__
 
 cd __STARTING_DIR__ 
 echo ======== start ==============
 date
 echo ======== start ==============
-srun -o 0 --ntasks=__NB_CORES__  --cpus-per-task=1 --hint=nomultithread --ntasks-per-node=32 --ntasks-per-socket=16 --ntasks-per-core=1 --cpu_bind=cores   __EXECUTABLE__
+echo SLURMJOB_ID=$SLURM_JOB_ID
+echo SLURM_JOB_NAME=$SLURM_JOB_NAME
+echo SLURM_JOB_NODELIST=$SLURM_JOB_NODELIST
+env > env.out
+echo ======== go!!! ==============
+srun -o 0 --ntasks=__NB_TASKS__ --ntasks=__NB_TASKS --cpus-per-task=1 --hint=nomultithread --ntasks-per-node=32 --ntasks-per-socket=16 --ntasks-per-core=1 --cpu_bind=cores __EXECUTABLE__
 echo ======== end ==============
 date
 echo ======== end ==============
