@@ -27,7 +27,7 @@ class my_ktf(ktf):
           print l,filename
         return int(float(l))
       except:
-        dump_exception('user_defined_timing')
+        self.dump_exception('user_defined_timing')
         job_out = "___".join(open(dir+'/job.out').readlines())
         if job_out.find("CANCELLED")>-1:
           return "CANCELLED/"+status[:2]
@@ -37,11 +37,5 @@ class my_ktf(ktf):
     return "!%s" % ellapsed_time
 
 if __name__ == "__main__":
-    K = my_ktf()
-    K.welcome_message()
-    K.parse()
-    if K.TIME:
-      K.list_jobs_and_get_time()
-    else:
-      K.run()
+    my_ktf()
       

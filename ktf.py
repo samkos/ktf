@@ -16,111 +16,21 @@ import datetime
 import string
 import shutil
 
-WORKSPACE_FILE = "workspace.pickle"
 
+from pysam import engine
+from env import *
 
-KTF_PATH = os.getenv("KTF_PATH")
-if not(KTF_PATH):
-  KTF_PATH = "/opt/share/ktf/0.1/"
-
-ERROR              = -1
-DUMP_EXCEPTION_AT_SCREEN = True
-
-#########################################################################
-# set log file
-#########################################################################
-
-
-for d in ["%s/LOGS" % KTF_PATH]:
-  if not(os.path.exists(d)):
-    os.mkdir(d)
-
-logger = logging.getLogger('ktf.log')
-logger.propagate = None
-logger.setLevel(logging.INFO)
-log_file_name = "%s/" % KTF_PATH+"LOGS/ktf.log"
-open(log_file_name, "a").close()
-handler = logging.handlers.RotatingFileHandler(
-     log_file_name, maxBytes = 20000000,  backupCount = 5)
-formatter = logging.Formatter("%(asctime)s %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-
-loggerror = logging.getLogger('ktf_err.log')
-loggerror.propagate = None
-loggerror.setLevel(logging.DEBUG)
-log_file_name = "%s/" % KTF_PATH+"LOGS/ktf_err.log"
-open(log_file_name, "a").close()
-handler = logging.handlers.RotatingFileHandler(
-     log_file_name, maxBytes = 20000000,  backupCount = 5)
-handler.setFormatter(formatter)
-loggerror.addHandler(handler)
+ERROR = -1
 
 
 
 
-#########################################################################
-# function handling exception and debugging message
-#########################################################################
-
-class MyError(Exception):
-    """
-    class reporting own exception message
-    """
-    def __init__(self, value):
-        self.value  =  value
-    def __str__(self):
-        return repr(self.value)
-
-def except_print():
-
-    exc_type, exc_value, exc_traceback = sys.exc_info()
-    
-    print "!!!!!!!!!!!!!!!!!!!!!!!!!"
-    print exc_type
-    print exc_value
-
-    print "!!!!!!!!!!!!!!!!!!!!!!!!!"
-    traceback.print_exception(exc_type, exc_value, exc_traceback,
-                              file=sys.stderr)
-
-
-def print_debug(s,r="nulll"):
-  if debug:
-    if r=="nulll":
-      print s
-    else:
-      print s,":",r
-
-
-
-def dump_exception(where,fic_contents_initial= None):
-    global DUMP_EXCEPTION_AT_SCREEN
-
-    exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
-    if DUMP_EXCEPTION_AT_SCREEN:
-      traceback.print_exception(exceptionType,exceptionValue, exceptionTraceback,\
-                                file=sys.stdout)
-      if fic_contents_initial:
-        print "\n============ Additional Info ===========\n"+\
-            "\n".join(fic_contents_initial)+\
-            "\n========== end =========\n"
-
-    print '!!!! Erreur in %s check error log file!!!' % where
-    logger.info('!!!! Erreur in %s check error log file!!!' % where)
-    loggerror.error('Erreur in %s' % where, exc_info=True)
-    if fic_contents_initial:
-        loggerror.error("\n============ Additional Info ===========\n"+\
-                        "\n".join(fic_contents_initial)+\
-                        "========== end content of file =========\n")
-
-
-
-
-class ktf:
+class ktf(engine):
 
   def __init__(self):
 
+
+    self.WORKSPACE_FILE = "workspace.pickle"
     self.check_python_version()
     
     self.TIME = False
@@ -143,10 +53,14 @@ class ktf:
     self.timing_results["procs"] = []
     self.timing_results["cases"] = []
     self.timing_results["runs"] = []
-    if os.path.exists(WORKSPACE_FILE):
+
+    if os.path.exists(self.WORKSPACE_FILE):
       self.load_workspace()
       #print self.timing_results["runs"]
     self.shortcuts='abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789'
+
+    engine.__init__(self,"ktf","0.4")
+
       
   #########################################################################
   # get machine name and alias 
@@ -261,28 +175,6 @@ echo ======== end ==============
       sys.exit(1)
 
   #########################################################################
-  # welcome message
-  #########################################################################
-
-
-  def welcome_message(self):
-      """ welcome message"""
-
-
-      self.MY_HOSTNAME, self.TMPDIR = self.get_machine()
-      self.MY_HOSTNAME_FULL_NAME = socket.gethostname()
-
-      print """                     #########################################
-                     #   Welcome to KSL Test Framework 0.3!  #
-                     #########################################
-       """
-      print "\trunning on %s (%s) " %(self.MY_HOSTNAME_FULL_NAME,self.MY_HOSTNAME)
-      print "\n\tprocessing ..."
-      print "\t\t", " ".join(sys.argv)
-
-
-
-  #########################################################################
   # usage ...
   #########################################################################
 
@@ -296,7 +188,7 @@ echo ======== end ==============
       else:
         print "\n  usage: \n \t python  run_tests.py \
                \n\t\t[ --help ] \
-               \n\t\t --submit | --build | --time | --create-template [ --only=pattern]\
+               \n\t\t[ --submit | --build | --time | --create-template [ --only=pattern]\
                \n\t\t[ --debug ] [ --debug-level=[0|1|2] ] [ --fake ]  \
              \n"  
 
@@ -309,6 +201,7 @@ echo ======== end ==============
 
   def parse(self,args=sys.argv[1:]):
       """ parse the command line and set global _flags according to it """
+
 
       try:
           opts, args = getopt.getopt(args, "h", 
@@ -345,8 +238,6 @@ echo ======== end ==============
           self.FAKE = True
       # second scan to get other arguments
       
-      self.MACHINE = self.MY_HOSTNAME
-
       if self.SUBMIT and self.TIME : 
         self.usage("--time and --submit can not be asked simultaneously")
 
@@ -356,6 +247,11 @@ echo ======== end ==============
       if not(self.BUILD) and not(self.TIME) and not(self.SUBMIT):
         self.usage("at least --build, --submit or --time should be asked")
 
+      if self.TIME:
+        self.list_jobs_and_get_time()
+      else:
+        self.run()
+
 
 
 
@@ -363,11 +259,11 @@ echo ======== end ==============
   # save_workspace
   #########################################################################
 
-  def save_workspace(self,workspace_file=WORKSPACE_FILE):
+  def save_workspace(self):
       
       #print "saving variables to file "+workspace_file
-      
-      f_workspace = open( workspace_file+".new", "wb" )
+      workspace_file = self.WORKSPACE_FILE
+      f_workspace = open(workspace_file+".new", "wb" )
       pickle.dump(self.JOB_ID    ,f_workspace)
       pickle.dump(self.JOB_STATUS,f_workspace)
       pickle.dump(self.timing_results,f_workspace)
@@ -381,11 +277,11 @@ echo ======== end ==============
   # load_workspace
   #########################################################################
 
-  def load_workspace(self,workspace_file = WORKSPACE_FILE ):
+  def load_workspace(self):
 
       #print "loading variables from file "+workspace_file
 
-      f_workspace = open( workspace_file, "rb" )
+      f_workspace = open( self.WORKSPACE_FILE, "rb" )
       self.JOB_ID    = pickle.load(f_workspace)
       self.JOB_STATUS = pickle.load(f_workspace)
       self.timing_results = pickle.load(f_workspace)
@@ -402,8 +298,7 @@ echo ======== end ==============
 
   def wrapped_system(self,cmd,comment="No comment",fake=False):
 
-    if self.DEBUG:
-      print "\tcurrently executing /%s/ :\n\t\t%s" % (comment,cmd)
+    self.log_debug("\tcurrently executing /%s/ :\n\t\t%s" % (comment,cmd))
 
     if not(fake) and not(self.FAKE):
       #os.system(cmd)
@@ -433,19 +328,11 @@ echo ======== end ==============
 
     br = ""
         
-    if self.DEBUG and msg_debug:
-      if len(msg_debug)>0:
-        while len(msg_debug)>1 and msg_debug[0]=='\n':
-          br = br+"\n"
-          msg_debug = msg_debug[1:]
-        print "%s\t%s%s" % (br,prefix,msg_debug)
+    if msg_debug:
+      self.log_debug(msg_debug)
     else:
       if msg :
-        if len(msg)>0:
-          while len(msg)>1 and msg[0:1]=='\n':
-            br = br+"\n"
-            msg = msg[1:]
-          print "%s\t%s%s" % (br,prefix,msg)
+        self.log_info(msg)
 
     if action==ERROR:
       sys.exit(1)
@@ -463,13 +350,13 @@ echo ======== end ==============
       self.user_message(msg_debug="\n\tbalises  = %s\n " % str(balises))
           
       for root, dirs, files in os.walk(directory):
-          if self.DEBUG:
-             print dirs,files
+          self.log_debug("dirs="+" ".join(dirs))
+          self.log_debug("files="+" ".files)
 
           for name in files:
               if ".template" in name and os.path.exists(os.path.join(root, name)):
-                  if self.DEBUG:
-                      print "\t\tsubstituting ",os.path.join(root, name)
+
+                  self.log_debug("\t\tsubstituting "+os.path.join(root, name))
                   fic = open(os.path.join(root, name))
                   t = "__NEWLINE__".join(fic.readlines())
                   fic.close()
@@ -514,12 +401,15 @@ echo ======== end ==============
         if filename[-1]=="*":
           filename = filename[:-1]
           executable = True
-        f = open(filename,"w")
-        f.write(content)
-        f.close()
-        if executable:
-          self.wrapped_system("chmod +x %s" % filename)
-        self.user_message(msg="file %s created " % filename)
+        if os.path.exists(filename):
+          print "\tfile %s already exists... skipping it!" % filename
+        else:
+          f = open(filename,"w")
+          f.write(content)
+          f.close()
+          if executable:
+            self.wrapped_system("chmod +x %s" % filename)
+          self.user_message(msg="file %s created " % filename)
 
     sys.exit(0)
 
@@ -1055,11 +945,5 @@ echo ======== end ==============
     
 if __name__ == "__main__":
     K = ktf()
-    K.welcome_message()
-    K.parse()
-    if self.TIME:
-      K.list_jobs_and_get_time()
-    else:
-      run()
-      
-    self.save_workspace()
+
+    K.save_workspace()
