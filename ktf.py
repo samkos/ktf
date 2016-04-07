@@ -514,12 +514,15 @@ echo ======== end ==============
         if filename[-1]=="*":
           filename = filename[:-1]
           executable = True
-        f = open(filename,"w")
-        f.write(content)
-        f.close()
-        if executable:
-          self.wrapped_system("chmod +x %s" % filename)
-        self.user_message(msg="file %s created " % filename)
+        if os.path.exists(filename):
+          print "\tfile %s already exists... skipping it!" % filename
+        else:
+          f = open(filename,"w")
+          f.write(content)
+          f.close()
+          if executable:
+            self.wrapped_system("chmod +x %s" % filename)
+          self.user_message(msg="file %s created " % filename)
 
     sys.exit(0)
 
