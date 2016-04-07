@@ -41,11 +41,8 @@ class ktf(engine):
     self.FAKE                 = False
     self.SUBMIT               = False
     self.SUBMIT_CMD           = False
-    self.MACHINE              = False
+    self.MACHINE,self.TMPDIR  = get_machine()
 
-    self.MY_MACHINE = self.MACHINE_FULL_NAME = ""
-    self.MY_HOSTNAME = self.TMPDIR = self.MY_HOSTNAME_FULL_NAME = ""
-    
     self.JOB_ID = {}
     self.JOB_DIR = {}
     self.JOB_STATUS = {}
@@ -59,25 +56,23 @@ class ktf(engine):
       #print self.timing_results["runs"]
     self.shortcuts='abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789'
 
+    self.set_machine_specifics()
+    
     engine.__init__(self,"ktf","0.4")
 
       
   #########################################################################
   # get machine name and alias 
   #########################################################################
-  def get_machine(self):
+  def set_machine_specifics(self):
       """
       determines the machine where tests are run
       """
 
-      tmp_directory = "/tmp"
-      machine = socket.gethostname()
-      self.user_message("","socket.gethostname=/%s/" % machine)
-      
-      if (machine[:3]=="cdl" or True):
-          machine = "shaheen"
+      if (self.MACHINE=="shaheen" or self.MACHINE=="osprey"):
           self.SUBMIT_CMD = 'sbatch'
-          self.MATRIX_FILE_TEMPLATE = """tests/shaheen_cases.txt__SEP2__# test matrix for shaheen II
+          self.MATRIX_FILE_TEMPLATE = """tests/%s""" % self.MACHINE + \
+                                      """_cases.txt__SEP2__# test matrix for shaheen II
 
 Test		   NB_CORES        ELLAPSED_TIME            
 
@@ -133,14 +128,8 @@ class my_ktf(ktf):
     return "!%s" % ellapsed_time
 
 if __name__ == "__main__":
-    K = my_ktf()
-    K.welcome_message()
-    K.parse()
-    if K.TIME:
-      K.list_jobs_and_get_time()
-    else:
-      K.run()
-__SEP1__tests/test1/job.shaheen.template__SEP2__#!/bin/bash
+    my_ktf()
+__SEP1__tests/test1/job."""+self.MACHINE+"""shaheen.template__SEP2__#!/bin/bash
 #SBATCH --job-name=__Test__
 #SBATCH --output=job.out
 #SBATCH --error=job.err
@@ -158,11 +147,9 @@ date
 echo ======== end ==============
   """
       else:
-          print "[WARNING]  machine /%s/ unknowwn : using sh to submit  " % machine
-          machine = "unknown"
+          print "[WARNING]  machine /%s/ unknowwn : using sh to submit  " % self.MACHINE
           self.SUBMIT_CMD = 'sh'
 
-      return machine, tmp_directory
 
 
 
@@ -204,6 +191,9 @@ echo ======== end ==============
 
 
       try:
+          if " --help" in " "+" ".join(args) or " -h " in (" "+" ".join(args)+" ") :
+            self.error_report("")
+
           opts, args = getopt.getopt(args, "h", 
                             ["help", "machine=", "test=", \
                                "debug", "debug-level=", "create-template", "time", "build", "only=", \
@@ -211,6 +201,13 @@ echo ======== end ==============
       except getopt.GetoptError, err:
           # print help information and exit:
           self.usage(err)
+
+      for option, argument in opts:
+        if option in ("--log-dir"):
+          self.LOG_DIR = expanduser(argument)
+
+      # initialize Logs
+      self.initialize_log_files()
 
       # first scan opf option to get prioritary one first
       # those who sets the state of the process
@@ -351,7 +348,7 @@ echo ======== end ==============
           
       for root, dirs, files in os.walk(directory):
           self.log_debug("dirs="+" ".join(dirs))
-          self.log_debug("files="+" ".files)
+          self.log_debug("files="+" ".join(files))
 
           for name in files:
               if ".template" in name and os.path.exists(os.path.join(root, name)):
@@ -658,7 +655,8 @@ echo ======== end ==============
       return "NotYet/"+status[:2]
 
     if os.path.getsize(path+"/job.err")>0:
-       return "Error/"+status[:2]
+       status="!"+status
+       #return "Error/"+status[:2]
     
     fic = open(path+"/job.out")
     t = "__NEWLINE__".join(fic.readlines())
