@@ -1,5 +1,7 @@
 import getopt, sys, os, socket, traceback
 
+from BaseHTTPServer import BaseHTTPRequestHandler,HTTPServer
+
 import logging
 import logging.handlers
 import warnings
@@ -17,11 +19,11 @@ import string
 import shutil
 
 
-from pysam import engine
+from engine import engine
 from env import *
+from server import *
 
 ERROR = -1
-
 
 
 
@@ -42,7 +44,10 @@ class ktf(engine):
     self.SUBMIT               = False
     self.SUBMIT_CMD           = False
     self.MACHINE,self.TMPDIR  = get_machine()
-
+    self.WWW                  = False
+    self.STATUS               = False
+    self.LIST                 = False
+    
     self.JOB_ID = {}
     self.JOB_DIR = {}
     self.JOB_STATUS = {}
@@ -58,6 +63,7 @@ class ktf(engine):
 
     self.set_machine_specifics()
     
+    self.PYSAM_VERSION_REQUIRED = 0.8
     engine.__init__(self,"ktf","0.4")
 
       
@@ -71,7 +77,7 @@ class ktf(engine):
 
       if (self.MACHINE=="shaheen" or self.MACHINE=="osprey"):
           self.SUBMIT_CMD = 'sbatch'
-          self.MATRIX_FILE_TEMPLATE = """tests/%s""" % self.MACHINE + \
+          self.MATRIX_FILE_TEMPLATE = """./%s""" % self.MACHINE + \
                                       """_cases.txt__SEP2__# test matrix for shaheen II
 
 Test		   NB_TASKS        ELLAPSED_TIME            
@@ -180,7 +186,8 @@ echo ======== end ==============
       else:
         print "\n  usage: \n \t python  run_tests.py \
                \n\t\t[ --help ] \
-               \n\t\t[ --submit | --build | --time | --create-template [ --only=pattern]\
+               \n\t\t[ --submit | --build | --list | --time | --create-template [ --only=pattern]\
+               \n\t\t[ --www ]  \
                \n\t\t[ --debug ] [ --debug-level=[0|1|2] ] [ --fake ]  \
              \n"  
 
@@ -200,8 +207,9 @@ echo ======== end ==============
             self.error_report("")
 
           opts, args = getopt.getopt(args, "h", 
-                            ["help", "machine=", "test=", \
+                            ["help", "machine=", "test=", "www", \
                                "debug", "debug-level=", "create-template", "time", "build", "only=", \
+                               "list", "status", 
                                "fake",  "submit" ])    
       except getopt.GetoptError, err:
           # print help information and exit:
@@ -225,19 +233,26 @@ echo ======== end ==============
         elif option in ("--debug-level"):
           self.DEBUG = int(argument)
         elif option in ("--create-template"):
-          self.create_test_matrix_template()
+          self.create_template(self.MATRIX_FILE_TEMPLATE)
         elif option in ("--only"):
           self.ONLY = argument
         elif option in ("--build"):
           self.BUILD = True
         elif option in ("--time"):
           self.TIME = True
+        elif option in ("--list"):
+          self.LIST = True
+        elif option in ("--status"):
+          self.STATUS = True
         elif option in ("--submit"):
           self.SUBMIT = True
           self.BUILD = True
         elif option in ("--fake"):
           self.DEBUG = True
           self.FAKE = True
+        elif option in ("--www"):
+          self.WWW = True
+
       # second scan to get other arguments
       
       if self.SUBMIT and self.TIME : 
@@ -382,39 +397,6 @@ echo ======== end ==============
       return job_file
 
 
-  #########################################################################
-  # create test template (matrix and job)
-  #########################################################################
-  def create_test_matrix_template(self):
-
-    l = self.MATRIX_FILE_TEMPLATE
-    
-    print
-
-    for filename_content in l.split("__SEP1__"):
-      filename,content = filename_content.split("__SEP2__")
-      if os.path.exists(filename):
-        print "\ttest matrix file %s already exists... skipping it!" % filename
-      else:
-        dirname = os.path.dirname(filename)
-        if not(os.path.exists(dirname)):
-          self.wrapped_system("mkdir -p %s" % dirname,comment="creating dir %s" % dirname)
-        executable = False
-        if filename[-1]=="*":
-          filename = filename[:-1]
-          executable = True
-        if os.path.exists(filename):
-          print "\tfile %s already exists... skipping it!" % filename
-        else:
-          f = open(filename,"w")
-          f.write(content)
-          f.close()
-          if executable:
-            self.wrapped_system("chmod +x %s" % filename)
-          self.user_message(msg="file %s created " % filename)
-
-    sys.exit(0)
-
 
   #########################################################################
   # get status of all jobs ever launched
@@ -435,22 +417,24 @@ echo ======== end ==============
         
     cmd = ["sacct","-j",",".join(jobs_to_check)]
     try:
-      output = vsubprocess.check_output(cmd)
+      output = subprocess.check_output(cmd)
     except:
+      self.dump_exception('[get_current_job_status] subprocess with ' + " ".join(cmd))
       output=""
     for l in output.split("\n"):
         try:
           if self.DEBUG:
             print l
-          j=l.split(" ")[0]
+          j=l.split(" ")[0].split(".")[0]
           status=l.split(" ")[-8]
-          if status in ('PENDING','TIMEOUT','FAILED','RUNNING','COMPLETED','CANCELLED','CANCELLED+'):
+          if status in ('PENDING','TIMEOUT','FAILED','RUNNING','COMPLETED','CANCELLED','CANCELLED+','COMPLETED'):
             if self.DEBUG:
               print status,j
             if status[-1]=='+':
               status  = status[:-1]
             self.JOB_STATUS[j] = self.JOB_STATUS[self.JOB_DIR[j]] = status
         except:
+          self.dump_exception('[get_current_job_status] parse job_status with j=%s' % j +"\n job status : "+l)
           pass
     self.save_workspace()
       
@@ -584,64 +568,74 @@ echo ======== end ==============
     self.timing_results["procs"].sort(key=int)
     #print self.timing_results["procs"]
     
-    print
-    print "%45s" % "Runs",
-    
-    for run in self.timing_results["runs"]:
-      print "%12s" % run.replace("-","").replace("_","")[-8:],
-    print
-    
     nb_line = 0
-    for case in self.timing_results["cases"]:
-      nb_line += 1
-      for proc in self.timing_results["procs"]:
-        k0 = "%s.%s" % (proc, case)
-        nb_runs = 0
-        nb_column = 0
-        for run in self.timing_results["runs"]:
-          k = "%s.%s.%s" % (run,proc,case)
-          if k in self.timing_results.keys():
-            nb_runs += 1
-        if nb_runs:
-          print "%45s" % case,
-          for run in self.timing_results["runs"]:
-            nb_column += 1
+    chunks = splitList(self.timing_results["runs"],5)
+
+    print
+    print '-' * 145
+
+    
+    for runs in chunks:
+
+      print "%45s" % "Runs",
+    
+
+      for run in runs:
+        print "%12s" % run.replace("-","").replace("_","")[-8:],
+      print
+    
+
+      for case in self.timing_results["cases"]:
+        nb_line += 1
+        for proc in self.timing_results["procs"]:
+          k0 = "%s.%s" % (proc, case)
+          nb_runs = 0
+          nb_column = 0
+          for run in runs:
             k = "%s.%s.%s" % (run,proc,case)
             if k in self.timing_results.keys():
-              t = self.timing_results[k]
-              shortcut = "%s%s" % (self.shortcuts[nb_column-1],self.shortcuts[nb_line-1])
-              path = run+"/"+case
-              if not(os.path.exists(path)):
-                path = path + " "
-                path = path.replace("32768 ","32k")
-                path = path.replace("16384 ","16k")
-                path = path.replace("8192 " ,"8k" )
-                path = path.replace("4096 " ,"4k" )
-                path = path.replace("2048 " ,"2k" )
-                path = path.replace("1024 " ,"1k" )
-                
-              os.symlink("."+path,"R/%s" % shortcut)
-              try:
-                print "%9s %s" % (t,shortcut),
-              except:
-                print 'range error ',nb_line-1,nb_column-1
-                sys.exit(1)
-              #print "%9s" % (t),
-              nb_tests = nb_tests + 1
-              if not(run in total_time.keys()):
-                total_time[run]=0
-              if t>0:
+              nb_runs += 1
+          if nb_runs:
+            print "%45s" % case,
+            for run in runs:
+              nb_column += 1
+              k = "%s.%s.%s" % (run,proc,case)
+              if k in self.timing_results.keys():
+                t = self.timing_results[k]
+                shortcut = "%s%s" % (self.shortcuts[nb_column-1],self.shortcuts[nb_line-1])
+                path = run+"/"+case
+                if not(os.path.exists(path)):
+                  path = path + " "
+                  path = path.replace("32768 ","32k")
+                  path = path.replace("16384 ","16k")
+                  path = path.replace("8192 " ,"8k" )
+                  path = path.replace("4096 " ,"4k" )
+                  path = path.replace("2048 " ,"2k" )
+                  path = path.replace("1024 " ,"1k" )
+                  
+                os.symlink("."+path,"R/%s" % shortcut)
                 try:
-                  total_time[run] += self.timing_results[k]
+                  print "%9s %s" % (t,shortcut),
                 except:
-                  pass
-            else:
-              print "%12s" % "-", 
-          print "%3s tests %s" % (nb_runs,case)
-    print "%45s" % "total time",
-    for run in self.timing_results["runs"]:
-      print "%9s   " % total_time[run],
-    print "%3s" % nb_tests,'tests in total'
+                  print 'range error ',nb_line-1,nb_column-1
+                  sys.exit(1)
+                #print "%9s" % (t),
+                nb_tests = nb_tests + 1
+                if not(run in total_time.keys()):
+                  total_time[run]=0
+                if t>0:
+                  try:
+                    total_time[run] += self.timing_results[k]
+                  except:
+                    pass
+              else:
+                print "%12s" % "-", 
+            print "%3s tests %s" % (nb_runs,case)
+      print "%45s" % "total time",
+      for run in runs:
+        print "%9s   " % total_time[run],
+      print "%3s" % nb_tests,'tests in total'
+      print '-' * 145
       
   #########################################################################
   # calculation of ellapsed time based on values dumped in job.out
@@ -767,7 +761,7 @@ echo ======== end ==============
           
   def run(self):
 
-    test_matrix_filename = "tests/%s_cases.txt" % self.MACHINE
+    test_matrix_filename = "./%s_cases.txt" % self.MACHINE
     
     if not(os.path.exists(test_matrix_filename)):
       print "\n\t ERROR : missing test matrix file %s for machine %s" % (test_matrix_filename,self.MACHINE)
