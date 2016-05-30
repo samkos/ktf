@@ -229,19 +229,27 @@ echo ======== end ==============
         if option in ("-h", "--help"):
           self.usage("")
         elif option in ("--debug"):
-          self.DEBUG = 1
+          self.DEBUG = 0
+          self.log.setLevel(logging.DEBUG)
         elif option in ("--debug-level"):
           self.DEBUG = int(argument)
-        elif option in ("--create-template"):
-          self.create_template(self.MATRIX_FILE_TEMPLATE)
+          self.log.setLevel(logging.DEBUG)
         elif option in ("--only"):
           self.ONLY = argument
+
+
+      for option, argument in opts:
+        if option in ("--create-template"):
+          self.create_ktf_template()
+          sys.exit(0)
         elif option in ("--build"):
           self.BUILD = True
         elif option in ("--time"):
           self.TIME = True
         elif option in ("--list"):
           self.LIST = True
+          if not(self.ONLY):
+            self.ONLY = ' '
         elif option in ("--status"):
           self.STATUS = True
         elif option in ("--submit"):
@@ -831,6 +839,9 @@ echo ======== end ==============
             for k in line.split(" "):
               print "%20s " % k[:20],
             print
+      # if --list exiting here
+      if self.LIST:
+        sys.exit(0)
       # askine to the user if he is ok or not
       input_var = raw_input("Is this correct ? (yes/no) ")
       if not(input_var == "yes"):
@@ -970,7 +981,31 @@ echo ======== end ==============
       print
       self.save_workspace()
         
-    
+
+  #########################################################################
+  # os.system wrapped to enable Trace if needed
+  #########################################################################
+
+  def create_ktf_template(self):
+
+    path = os.getenv('KTF_PATH')
+    if not(path):
+      path='.'
+    for dirpath, dirs, files in os.walk("%s/templates" %  path): 
+       for filename in files:
+         filename_from = os.path.join(dirpath,filename)
+         filename_to   = filename_from.replace("%s/templates/" %  path,"./")
+         if os.path.exists(filename_to):
+           self.log_info("\t file %s already exists... skipping it!" % filename_to)
+         else:
+           dirname = os.path.dirname(filename_to)
+           self.log_debug('working on file %s in dir %s' % (filename_to,dirname))
+
+           if not(os.path.exists(dirname)):
+             self.wrapped_system("mkdir -p %s" % dirname,comment="creating dir %s" % dirname)
+           self.wrapped_system("cp %s %s" % (filename_from,filename_to),comment="creating file %s" % filename_to)
+           self.log_info('creating file %s' % (filename_to))
+      
 if __name__ == "__main__":
     K = ktf()
 
