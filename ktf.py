@@ -59,7 +59,7 @@ class ktf(engine):
     if os.path.exists(self.WORKSPACE_FILE):
       self.load_workspace()
       #print self.timing_results["runs"]
-    self.shortcuts='abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789'
+    self.shortcuts='abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789-_=+[]%!@'
 
     self.set_machine_specifics()
     
@@ -261,14 +261,17 @@ echo ======== end ==============
       if self.BUILD and self.TIME : 
         self.usage("--time and --build can not be asked simultaneously")
 
-      if not(self.BUILD) and not(self.TIME) and not(self.SUBMIT):
-        self.usage("at least --build, --submit or --time should be asked")
+      if not(self.BUILD) and not(self.TIME) and not(self.SUBMIT) and not(self.STATUS) and not(self.LIST):
+        self.usage("at least --list, --build, --submit, --status, or --time should be asked")
 
       if self.TIME:
         self.list_jobs_and_get_time()
+      elif self.STATUS:
+        self.get_ktf_status()
       else:
         self.run()
 
+      
 
 
 
@@ -548,6 +551,31 @@ echo ======== end ==============
               self.scan_jobs_and_get_time(path_new,level+1,timing,dir_already_printed)
 
 
+
+  #########################################################################
+  # display ellapsed time and preparing the linked directory
+  #########################################################################
+
+  def get_ktf_status(self,path=".",level=0,timing=False,
+                             dir_already_printed={}):
+
+    #self.get_current_jobs_status()
+    self.scan_jobs_and_get_time(path,level,timing,dir_already_printed)
+
+    print '\n%s experimemnts availables : ' % len(self.timing_results["runs"])
+    chunks = splitList(self.timing_results["runs"],5)
+    for runs in chunks:
+      for run in runs:
+        print "%12s" % run.replace("-","").replace("_","")[-8:],
+      print
+
+    print '\n%s tests availables : ' % len(self.timing_results["cases"])
+    chunks = splitList(self.timing_results["cases"],5)
+    for cases in chunks:
+      for case in cases:
+        print "%12s" % case,
+      print
+
   #########################################################################
   # display ellapsed time and preparing the linked directory
   #########################################################################
@@ -568,15 +596,18 @@ echo ======== end ==============
     self.timing_results["procs"].sort(key=int)
     #print self.timing_results["procs"]
     
-    nb_line = 0
+
     chunks = splitList(self.timing_results["runs"],5)
 
     print
     print '-' * 145
 
     
+    nb_column = 0
     for runs in chunks:
 
+      nb_column_start = nb_column
+      nb_line = 0
       print "%45s" % "Runs",
     
 
@@ -590,7 +621,7 @@ echo ======== end ==============
         for proc in self.timing_results["procs"]:
           k0 = "%s.%s" % (proc, case)
           nb_runs = 0
-          nb_column = 0
+          nb_column = nb_column_start
           for run in runs:
             k = "%s.%s.%s" % (run,proc,case)
             if k in self.timing_results.keys():
