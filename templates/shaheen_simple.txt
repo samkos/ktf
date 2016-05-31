@@ -1,0 +1,17 @@
+# test matrix for shaheen II
+
+Test		   NB_TASKS        ELLAPSED_TIME            
+
+# Global variables
+
+#KTF SLURM_ACCOUNT = kxxxx
+#KTF PARTITION = workq
+#KTF EXECUTABLE = my_code
+#KTF Directory = simple
+
+
+# test test1
+
+Code_test1_512	     512             0:10:00         
+Code_test1_256	     256             0:10:00   
+Code_test1_128	     128             0:10:00   

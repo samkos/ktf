@@ -42,7 +42,6 @@ class ktf(engine):
     self.MATRIX_FILE_TEMPLATE = ""
     self.FAKE                 = False
     self.SUBMIT               = False
-    self.SUBMIT_CMD           = False
     self.MACHINE,self.TMPDIR  = get_machine()
     self.WWW                  = False
     self.STATUS               = False
@@ -61,117 +60,10 @@ class ktf(engine):
       #print self.timing_results["runs"]
     self.shortcuts='abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789-_=+[]%!@'
 
-    self.set_machine_specifics()
-    
     self.PYSAM_VERSION_REQUIRED = 0.8
     engine.__init__(self,"ktf","0.4")
 
       
-  #########################################################################
-  # get machine name and alias 
-  #########################################################################
-  def set_machine_specifics(self):
-      """
-      determines the machine where tests are run
-      """
-
-      if (self.MACHINE=="shaheen" or self.MACHINE=="osprey"):
-          self.SUBMIT_CMD = 'sbatch'
-          self.MATRIX_FILE_TEMPLATE = """./%s""" % self.MACHINE + \
-                                      """_cases.txt__SEP2__# test matrix for shaheen II
-
-Test		   NB_TASKS        ELLAPSED_TIME            
-
-# Global variables
-
-#KTF SLURM_ACCOUNT = kxxxx
-#KTF PARTITION = workq
-#KTF EXECUTABLE = my_code
-#KTF Directory = test1
-
-
-# test test1
-
-#Code_test1_512	     512             1:10:00         
-#Code_test1_256	     256             3:10:00   
-#Code_test1_128	     128             3:10:00   
-
-__SEP1__run_tests.py*__SEP2__
-from ktf import *
-import glob
-from env import *
-import math
-
-class my_ktf(ktf):
-
-  def __init__(self):
-    ktf.__init__(self)
-
-
-
-  def my_timing(self,dir,ellapsed_time,status):
-
-    files = glob.glob(dir+'/job.out')
-    self.log_debug("dir===>%s<==,status=/%s/,len(files)=/%s/" % (dir,status,len(files)))
-    for filename in files:
-      try:
-        res = greps("Total Time"   ,filename,-2)
-        self.log_debug('res=%s'% res)
-        Total_time        = int(float(res[0])*100.)/100. 
-        self.log_debug("Total Time: %s" % (Total_time))
-        #return "%s/%s" % (int(float(res[1])),int(float(res2[1]))) #,int(float(res3[1])
-        return "%s/%s" % (Total_time,status[:2])
-      
-      except:
-        self.dump_exception('user_defined_timing')
-        job_out = "___".join(open(dir+'/job.out').readlines())
-        if job_out.find("CANCELLED")>-1:
-          return "CANCELLED/"+status[:2]
-        if self.DEBUG:
-          print "pb on ",filename
-        return "PB/"+status[:2]
-    return "!%s" % ellapsed_time
-
-if __name__ == "__main__":
-    my_ktf()
-__SEP1__tests/test1/job."""+self.MACHINE+""".template__SEP2__#!/bin/bash
-#SBATCH --job-name=__Test__
-#SBATCH --output=job.out
-#SBATCH --error=job.err
-#SBATCH --ntasks=__NB_TASKS__
-#SBATCH --time=__ELLAPSED_TIME__
-#SBATCH --partition=__PARTITION__
-#SBATCH -A __SLURM_ACCOUNT__
-
-cd __STARTING_DIR__ 
-echo ======== start ==============
-date
-echo ======== start ==============
-echo SLURMJOB_ID=$SLURM_JOB_ID
-echo SLURM_JOB_NAME=$SLURM_JOB_NAME
-echo SLURM_JOB_NODELIST=$SLURM_JOB_NODELIST
-env > env.out
-echo ======== go!!! ==============
-srun -o 0 --ntasks=__NB_TASKS__ --ntasks=__NB_TASKS --cpus-per-task=1 --hint=nomultithread --ntasks-per-node=32 --ntasks-per-socket=16 --ntasks-per-core=1 --cpu_bind=cores __EXECUTABLE__
-echo ======== end ==============
-date
-echo ======== end ==============
-  """
-      else:
-          print "[WARNING]  machine /%s/ unknowwn : using sh to submit  " % self.MACHINE
-          self.SUBMIT_CMD = 'sh'
-
-
-
-
-
-  def check_python_version(self):
-    try:
-      subprocess.check_output(["ls"])
-    except:
-      print ("ERROR : Please use a more recent version of Python > 2.7.4")
-      sys.exit(1)
-
   #########################################################################
   # usage ...
   #########################################################################
@@ -187,6 +79,7 @@ echo ======== end ==============
         print "\n  usage: \n \t python  run_tests.py \
                \n\t\t[ --help ] \
                \n\t\t[ --submit | --build | --list | --time | --create-template [ --only=pattern]\
+               \n\t\t[ --test-file=[test_file] ]  \
                \n\t\t[ --www ]  \
                \n\t\t[ --debug ] [ --debug-level=[0|1|2] ] [ --fake ]  \
              \n"  
@@ -201,7 +94,8 @@ echo ======== end ==============
   def parse(self,args=sys.argv[1:]):
       """ parse the command line and set global _flags according to it """
 
-
+      self.TEST_FILE = "./%s_cases.txt" % self.MACHINE
+      
       try:
           if " --help" in " "+" ".join(args) or " -h " in (" "+" ".join(args)+" ") :
             self.error_report("")
@@ -209,7 +103,7 @@ echo ======== end ==============
           opts, args = getopt.getopt(args, "h", 
                             ["help", "machine=", "test=", "www", \
                                "debug", "debug-level=", "create-template", "time", "build", "only=", \
-                               "list", "status", 
+                               "list", "status", "test-file=",
                                "fake",  "submit" ])    
       except getopt.GetoptError, err:
           # print help information and exit:
@@ -236,8 +130,9 @@ echo ======== end ==============
           self.log.setLevel(logging.DEBUG)
         elif option in ("--only"):
           self.ONLY = argument
-
-
+        elif option in ("--test-file"):
+          self.TEST_FILE = argument
+          
       for option, argument in opts:
         if option in ("--create-template"):
           self.create_ktf_template()
@@ -800,7 +695,7 @@ echo ======== end ==============
           
   def run(self):
 
-    test_matrix_filename = "./%s_cases.txt" % self.MACHINE
+    test_matrix_filename = self.TEST_FILE
     
     if not(os.path.exists(test_matrix_filename)):
       print "\n\t ERROR : missing test matrix file %s for machine %s" % (test_matrix_filename,self.MACHINE)
@@ -936,7 +831,7 @@ echo ======== end ==============
       if "Submit" in tag.keys():
         submit_command = tag["Submit"]
       else:
-        submit_command = self.SUBMIT_CMD
+        submit_command = self.SUBMIT_COMMAND
       cmd = cmd + \
             "mkdir -p %s; cd %s ; tar fc - -C ../../tests/%s . | tar xvf - > /dev/null\n " % \
             ( dest_directory, dest_directory,tag["Directory"]) 
