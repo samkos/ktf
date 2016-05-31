@@ -80,7 +80,7 @@ class ktf(engine):
                \n\t\t[ --help ] \
                \n\t\t[ --submit | --build | --list | --time | --create-template [ --only=pattern]\
                \n\t\t[ --test-file=[test_file] ] [ --times=number of repetition> ] \
-               \n\t\t[ --www ]  \
+               \n\t\t[ --wide ]  \
                \n\t\t[ --debug ] [ --debug-level=[0|1|2] ] [ --fake ]  \
              \n"  
 
@@ -96,6 +96,7 @@ class ktf(engine):
 
       self.TEST_FILE = "./%s_cases.txt" % self.MACHINE
       self.TIMES = 1
+      self.NB_COLUMNS_MAX = 3
       
       try:
           if " --help" in " "+" ".join(args) or " -h " in (" "+" ".join(args)+" ") :
@@ -105,7 +106,7 @@ class ktf(engine):
                             ["help", "machine=", "test=", "www", \
                                "debug", "debug-level=", "create-template", "time", "build", "only=", \
                                "list", "status", "test-file=","times=",
-                               "fake",  "submit" ])    
+                               "fake",  "submit", "wide" ])    
       except getopt.GetoptError, err:
           # print help information and exit:
           self.usage(err)
@@ -133,6 +134,8 @@ class ktf(engine):
           self.ONLY = argument
         elif option in ("--test-file"):
           self.TEST_FILE = argument
+        elif option in ("--wide"):
+          self.NB_COLUMNS_MAX = 9
           
       for option, argument in opts:
         if option in ("--create-template"):
@@ -515,7 +518,7 @@ class ktf(engine):
     #print self.timing_results["procs"]
     
 
-    chunks = splitList(self.timing_results["runs"],3)
+    chunks = splitList(self.timing_results["runs"],self.NB_COLUMNS_MAX)
 
     print
     print '-' * 125
