@@ -37,7 +37,8 @@ class ktf(engine):
     
     self.TIME = False
     self.DEBUG = 0
-    self.ONLY = ""
+    self.WHAT = ""
+    self.WHEN = ""
     self.BUILD = False
     self.MATRIX_FILE_TEMPLATE = ""
     self.FAKE                 = False
@@ -77,8 +78,9 @@ class ktf(engine):
           print "\ttype ktf -h for the list of available options..."
       else:
         print "\n  usage: \n \t python  run_tests.py \
-               \n\t\t[ --help ] \
-               \n\t\t[ --submit | --build | --list | --time | --create-template [ --only=pattern]\
+               \n\t\t[ --help ] [ --create-template ] \
+               \n\t\t[ --submit | --build ] [ --what=<filter on case>]\
+               \n\t\t[ --list | --time ] [ --when=<filter on date>]\
                \n\t\t[ --test-file=[test_file] ] [ --times=number of repetition> ] \
                \n\t\t[ --wide ]  \
                \n\t\t[ --debug ] [ --debug-level=[0|1|2] ] [ --fake ]  \
@@ -102,9 +104,9 @@ class ktf(engine):
           if " --help" in " "+" ".join(args) or " -h " in (" "+" ".join(args)+" ") :
             self.error_report("")
 
-          opts, args = getopt.getopt(args, "h", 
+          opts, args = getopt.getopt(args, ["h", "l"], 
                             ["help", "machine=", "test=", "www", \
-                               "debug", "debug-level=", "create-template", "time", "build", "only=", \
+                               "debug", "debug-level=", "create-template", "time", "build", "what=", "when=",\
                                "list", "status", "test-file=","times=",
                                "fake",  "submit", "wide" ])    
       except getopt.GetoptError, err:
@@ -130,8 +132,10 @@ class ktf(engine):
         elif option in ("--debug-level"):
           self.DEBUG = int(argument)
           self.log.setLevel(logging.DEBUG)
-        elif option in ("--only"):
-          self.ONLY = argument
+        elif option in ("--what"):
+          self.WHAT = argument
+        elif option in ("--when"):
+          self.WHEN = argument
         elif option in ("--test-file"):
           self.TEST_FILE = argument
         elif option in ("--wide"):
@@ -145,10 +149,10 @@ class ktf(engine):
           self.BUILD = True
         elif option in ("--time"):
           self.TIME = True
-        elif option in ("--list"):
+        elif option in ("-l","--list"):
           self.LIST = True
-          if not(self.ONLY):
-            self.ONLY = ' '
+          if not(self.WHAT):
+            self.WHAT = ' '
         elif option in ("--status"):
           self.STATUS = True
         elif option in ("--submit"):
@@ -173,10 +177,10 @@ class ktf(engine):
       if not(self.BUILD) and not(self.TIME) and not(self.SUBMIT) and not(self.STATUS) and not(self.LIST):
         self.usage("at least --list, --build, --submit, --status, or --time should be asked")
 
-      if self.TIME:
-        self.list_jobs_and_get_time()
-      elif self.STATUS:
+      if self.STATUS:
         self.get_ktf_status()
+      elif self.TIME:
+        self.list_jobs_and_get_time()
       else:
         for nb_experiment in range(self.TIMES):
           self.run()
@@ -507,6 +511,8 @@ class ktf(engine):
   def list_jobs_and_get_time(self,path=".",level=0,timing=False,
                              dir_already_printed={}):
 
+    status_error_links = False
+
     self.get_current_jobs_status()
 
     self.scan_jobs_and_get_time(path,level,timing,dir_already_printed)
@@ -520,17 +526,8 @@ class ktf(engine):
     self.timing_results["procs"].sort(key=int)
     #print self.timing_results["procs"]
 
-    candidate_runs = self.timing_results["runs"]
-    if self.ONLY:
-      all_runs = []
-      for c in candidate_runs:
-        r = c[-15:],
-        print r
-        if r[0].find(self.ONLY)>=0:
-          all_runs = all_runs +[c]
-    else:
-      all_runs = candidate_runs
-    chunks = splitList(all_runs,self.NB_COLUMNS_MAX)
+
+    chunks = splitList(self.timing_results["runs"],self.NB_COLUMNS_MAX,only=self.WHEN)
 
     print
     print '-' * 125
@@ -539,6 +536,7 @@ class ktf(engine):
     nb_column = 0
     for runs in chunks:
 
+      self.log_debug('runs=[%s], nb_column=%s' % (",".join(runs),nb_column),2)
       nb_column_start = nb_column
       nb_line = 0
       print "%45s" % "Runs",
@@ -549,17 +547,17 @@ class ktf(engine):
       print
     
 
-      for case in self.timing_results["cases"]:
+      for case in splitList(self.timing_results["cases"],1000,only=self.WHAT)[0]:
         nb_line += 1
         for proc in self.timing_results["procs"]:
           k0 = "%s.%s" % (proc, case)
           nb_runs = 0
-          nb_column = nb_column_start
           for run in runs:
             k = "%s.%s.%s" % (run,proc,case)
             if k in self.timing_results.keys():
               nb_runs += 1
           if nb_runs:
+            nb_column = nb_column_start
             print "%45s" % case,
             for run in runs:
               nb_column += 1
@@ -576,8 +574,11 @@ class ktf(engine):
                   path = path.replace("4096 " ,"4k" )
                   path = path.replace("2048 " ,"2k" )
                   path = path.replace("1024 " ,"1k" )
-                  
-                os.symlink("."+path,"R/%s" % shortcut)
+                try:
+                  os.symlink("."+path,"R/%s" % shortcut)
+                except:
+                  self.log_debug( '\nZZZZZZZZZZZ symbolic link failed for ' + "ln -s ."+path + " R/%s" % shortcut)
+                  status_error_links = True
                 try:
                   print "%15s %s" % (t,shortcut),
                 except:
@@ -593,14 +594,21 @@ class ktf(engine):
                   except:
                     pass
               else:
-                print "%18s" % "-", 
-            print "%3s tests %s" % (nb_runs,case)
+                print "%18s" % "-",
+            blank = ""
+            for r in range(len(runs),self.NB_COLUMNS_MAX):
+              blank = blank + " "*19
+            print "%s%3s tests %s" % (blank,nb_runs,case)
       print "%45s" % "total time",
       for run in runs:
         print "%15s   " % total_time[run],
-      print "%3s" % nb_tests,'tests in total'
+      print "%s%3s" % (blank,nb_tests),'tests in total'
       print '-' * 125
-      
+      self.log_debug('at the end of the runs chunk nb_column=%s' % (nb_column),2)
+
+    if status_error_links:
+      self.log_info('!WARNING! Error encountered setting symbolic links in R/ directory, run with --debug to know more')
+
   #########################################################################
   # calculation of ellapsed time based on values dumped in job.out
   #########################################################################
@@ -749,8 +757,8 @@ class ktf(engine):
 
     # warning message is sent to the user if filter is applied on the jobs to run
     
-    if len(self.ONLY):
-      print "the filter %s will be applied... Only following lines will be taken into account :"
+    if len(self.WHAT):
+      self.log-info("the filter %s will be applied... Only following lines will be taken into account :",self.WHAT)
       self.direct_tag = {}
       for line in lines:
         line = self.clean_line(line)
@@ -764,7 +772,7 @@ class ktf(engine):
             line = line+" "+self.direct_tag[k]
           if self.DEBUG:
             print line
-          matchObj = re.match("^.*"+self.ONLY+".*$",line)
+          matchObj = re.match("^.*"+self.WHAT+".*$",line)
           # prints all the tests that will be selected
           if (matchObj):
             print "\t",
@@ -808,7 +816,7 @@ class ktf(engine):
       for k in self.direct_tag.keys():
         line2scan = line2scan+" "+self.direct_tag[k]
       # if job case are filtered, apply it, jumping to next line if filter not match
-      matchObj = re.match("^.*"+self.ONLY+".*$",line2scan)
+      matchObj = re.match("^.*"+self.WHAT+".*$",line2scan)
       if not(matchObj):
         continue
 
