@@ -337,7 +337,10 @@ class ktf(engine):
     try:
       output = subprocess.check_output(cmd)
     except:
-      self.dump_exception('[get_current_job_status] subprocess with ' + " ".join(cmd))
+      if self.DEBUG:
+        self.dump_exception('[get_current_job_status] subprocess with ' + " ".join(cmd))
+      else:
+        status_error = True
       output=""
     for l in output.split("\n"):
         try:
@@ -487,7 +490,7 @@ class ktf(engine):
     chunks = splitList(self.timing_results["runs"],5)
     for runs in chunks:
       for run in runs:
-        print "%12s" % run.replace("-","").replace("_","")[-8:],
+        print "%12s" % run[-15:],
       print
 
     print '\n%s tests availables : ' % len(self.timing_results["cases"])
@@ -516,9 +519,18 @@ class ktf(engine):
     total_time = {}
     self.timing_results["procs"].sort(key=int)
     #print self.timing_results["procs"]
-    
 
-    chunks = splitList(self.timing_results["runs"],self.NB_COLUMNS_MAX)
+    candidate_runs = self.timing_results["runs"]
+    if self.ONLY:
+      all_runs = []
+      for c in candidate_runs:
+        r = c[-15:],
+        print r
+        if r[0].find(self.ONLY)>=0:
+          all_runs = all_runs +[c]
+    else:
+      all_runs = candidate_runs
+    chunks = splitList(all_runs,self.NB_COLUMNS_MAX)
 
     print
     print '-' * 125
@@ -533,7 +545,7 @@ class ktf(engine):
     
 
       for run in runs:
-        print "%18s" % run.replace("-","").replace("_","")[-8:],
+        print "%18s" % run[-15:],
       print
     
 
@@ -719,14 +731,21 @@ class ktf(engine):
     if not(os.path.exists(test_matrix_filename)):
       print "\n\t ERROR : missing test matrix file %s for machine %s" % (test_matrix_filename,self.MACHINE)
       print "\n\t         ktf --create-test-template can be called to create the templates"
-      sys.exit(1)
+      if self.LIST:
+        tags_ok = False
+        mandatory_fields = ["Test", "Directory"]
+        
+        lines = ['']
+      else:
+        sys.exit(1)
+    else:
 
-    print
+      print
     
-    tags_ok = False
-    mandatory_fields = ["Test", "Directory"]
+      tags_ok = False
+      mandatory_fields = ["Test", "Directory"]
 
-    lines = open(test_matrix_filename).readlines()
+      lines = open(test_matrix_filename).readlines()
 
     # warning message is sent to the user if filter is applied on the jobs to run
     

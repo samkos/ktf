@@ -1,8 +1,10 @@
 #!/usr/bin/python
 
 from BaseHTTPServer import BaseHTTPRequestHandler,HTTPServer
+import glob
+import os
 
-PORT_NUMBER = 8080
+PORT_NUMBER = 5555
 
 #This class will handles any incoming request from
 #the browser
@@ -17,7 +19,10 @@ class myHandler(BaseHTTPRequestHandler):
 		self.send_header('Content-type','text/html')
 		self.end_headers()
 		# Send the html message
-		self.wfile.write("Hello World !")
+		self.wfile.write("Hello World ! <BR>")
+                files = filter(os.path.isdir, os.listdir(os.getcwd()))
+                for f in files:
+                   self.wfile.write("%s<br>"  % f)
 		return
 
 class server():
