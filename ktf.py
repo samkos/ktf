@@ -738,7 +738,8 @@ class ktf(engine):
     
     if not(os.path.exists(test_matrix_filename)):
       print "\n\t ERROR : missing test matrix file %s for machine %s" % (test_matrix_filename,self.MACHINE)
-      print "\n\t         ktf --create-test-template can be called to create the templates"
+      print "\n\t         ktf --create-test-template  can be called to create the templates"
+      print "\t\tor\n\t         ktf --test-file=<case file> can be called to read the cases from another file"
       if self.LIST:
         tags_ok = False
         mandatory_fields = ["Test", "Directory"]
@@ -758,7 +759,7 @@ class ktf(engine):
     # warning message is sent to the user if filter is applied on the jobs to run
     
     if len(self.WHAT):
-      self.log-info("the filter %s will be applied... Only following lines will be taken into account :",self.WHAT)
+      self.log_info("the filter %s will be applied... Only following lines will be taken into account :",self.WHAT)
       self.direct_tag = {}
       for line in lines:
         line = self.clean_line(line)
