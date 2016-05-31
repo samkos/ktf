@@ -79,7 +79,7 @@ class ktf(engine):
         print "\n  usage: \n \t python  run_tests.py \
                \n\t\t[ --help ] \
                \n\t\t[ --submit | --build | --list | --time | --create-template [ --only=pattern]\
-               \n\t\t[ --test-file=[test_file] ]  \
+               \n\t\t[ --test-file=[test_file] ] [ --times=number of repetition> ] \
                \n\t\t[ --www ]  \
                \n\t\t[ --debug ] [ --debug-level=[0|1|2] ] [ --fake ]  \
              \n"  
@@ -95,6 +95,7 @@ class ktf(engine):
       """ parse the command line and set global _flags according to it """
 
       self.TEST_FILE = "./%s_cases.txt" % self.MACHINE
+      self.TIMES = 1
       
       try:
           if " --help" in " "+" ".join(args) or " -h " in (" "+" ".join(args)+" ") :
@@ -103,7 +104,7 @@ class ktf(engine):
           opts, args = getopt.getopt(args, "h", 
                             ["help", "machine=", "test=", "www", \
                                "debug", "debug-level=", "create-template", "time", "build", "only=", \
-                               "list", "status", "test-file=",
+                               "list", "status", "test-file=","times=",
                                "fake",  "submit" ])    
       except getopt.GetoptError, err:
           # print help information and exit:
@@ -155,6 +156,8 @@ class ktf(engine):
           self.FAKE = True
         elif option in ("--www"):
           self.WWW = True
+        elif option in ("--times"):
+          self.TIMES = int(argument)
 
       # second scan to get other arguments
       
@@ -172,7 +175,11 @@ class ktf(engine):
       elif self.STATUS:
         self.get_ktf_status()
       else:
-        self.run()
+        for nb_experiment in range(self.TIMES):
+          self.run()
+          if self.TIMES>1:
+            time.sleep(1)
+
 
       
 
@@ -309,6 +316,8 @@ class ktf(engine):
   #########################################################################
   def get_current_jobs_status(self):
 
+    status_error = False
+    
     if self.DEBUG:
       print len(self.JOB_ID)
     jobs_to_check = list()
@@ -340,9 +349,15 @@ class ktf(engine):
               status  = status[:-1]
             self.JOB_STATUS[j] = self.JOB_STATUS[self.JOB_DIR[j]] = status
         except:
-          self.dump_exception('[get_current_job_status] parse job_status with j=%s' % j +"\n job status : "+l)
+          if self.DEBUG:
+            self.dump_exception('[get_current_job_status] parse job_status with j=%s' % j +"\n job status : "+l)
+          else:
+            status_error = True
           pass
     self.save_workspace()
+
+    if status_error:
+      self.log_info('!WARNING! Error encountered scanning job status, run with --debug to know more')
       
   #########################################################################
   # get current job status
@@ -500,10 +515,10 @@ class ktf(engine):
     #print self.timing_results["procs"]
     
 
-    chunks = splitList(self.timing_results["runs"],5)
+    chunks = splitList(self.timing_results["runs"],3)
 
     print
-    print '-' * 145
+    print '-' * 125
 
     
     nb_column = 0
@@ -515,7 +530,7 @@ class ktf(engine):
     
 
       for run in runs:
-        print "%12s" % run.replace("-","").replace("_","")[-8:],
+        print "%18s" % run.replace("-","").replace("_","")[-8:],
       print
     
 
@@ -549,7 +564,7 @@ class ktf(engine):
                   
                 os.symlink("."+path,"R/%s" % shortcut)
                 try:
-                  print "%9s %s" % (t,shortcut),
+                  print "%15s %s" % (t,shortcut),
                 except:
                   print 'range error ',nb_line-1,nb_column-1
                   sys.exit(1)
@@ -563,13 +578,13 @@ class ktf(engine):
                   except:
                     pass
               else:
-                print "%12s" % "-", 
+                print "%18s" % "-", 
             print "%3s tests %s" % (nb_runs,case)
       print "%45s" % "total time",
       for run in runs:
-        print "%9s   " % total_time[run],
+        print "%15s   " % total_time[run],
       print "%3s" % nb_tests,'tests in total'
-      print '-' * 145
+      print '-' * 125
       
   #########################################################################
   # calculation of ellapsed time based on values dumped in job.out
@@ -585,11 +600,11 @@ class ktf(engine):
 
     if not(os.path.exists(path+"/job.out")):
       #sk print 'NotYet for %s' % path+'/job.out'
-      return "NotYet/"+status[:2]
+      return "NotYet/"+status# [:2]
 
     if os.path.getsize(path+"/job.err")>0:
        status="!"+status
-       #return "Error/"+status[:2]
+       #return "Error/"+status# [:2]
     
     fic = open(path+"/job.out")
     t = "__NEWLINE__".join(fic.readlines())
@@ -603,7 +618,7 @@ class ktf(engine):
       start_timing = t.split("======== start ==============")
       #print len(start_timing),start_timing
       if len(start_timing)<2:
-        return "NOST/"+status[:2]
+        return "NOST/"+status# [:2]
       from_date = start_timing[1].replace("__NEWLINE__","").replace("\n","").split(" ")
       (from_month,from_day,from_time) = (from_date[1],from_date[2],from_date[3])
       (from_hour,from_minute,from_second) = from_time.split(":")
@@ -616,7 +631,7 @@ class ktf(engine):
           ellapsed_time = ((int(now.day)*24.+int(now.hour))*60+int(now.minute))*60+int(now.second) \
                         - (((int(from_day)*24.+int(from_hour))*60+int(from_minute))*60+int(from_second))
           return "%d/RU" % ellapsed_time 
-        return "NOEND/"+status[:2]
+        return "NOEND/"+status# [:2] 
       from_date = to_date = "None"
       if len(start_timing)>1 and len(end_timing)>1:
         to_date = end_timing[1].replace("__NEWLINE__","").replace("\n","").split(" ")
@@ -696,6 +711,7 @@ class ktf(engine):
   def run(self):
 
     test_matrix_filename = self.TEST_FILE
+    now = time.strftime('%y%m%d-%H_%M_%S',time.localtime())
     
     if not(os.path.exists(test_matrix_filename)):
       print "\n\t ERROR : missing test matrix file %s for machine %s" % (test_matrix_filename,self.MACHINE)
@@ -704,7 +720,6 @@ class ktf(engine):
 
     print
     
-    now = time.strftime('%y%m%d-%H_%M_%S',time.localtime())
     tags_ok = False
     mandatory_fields = ["Test", "Directory"]
 
@@ -822,6 +837,7 @@ class ktf(engine):
 
       # all tags are valued at this time
       # creating the job directory indexed by time
+
       dest_directory = "tests_%s_%s/%s" % (self.MACHINE,now,tag["Test"])
       cmd = ""
 
@@ -875,8 +891,8 @@ class ktf(engine):
               (self.MACHINE,dest_directory)
       print
       self.save_workspace()
-        
-
+      
+              
   #########################################################################
   # os.system wrapped to enable Trace if needed
   #########################################################################
