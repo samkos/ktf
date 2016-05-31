@@ -62,7 +62,7 @@ class ktf(engine):
     self.shortcuts='abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789-_=+[]%!@'
 
     self.PYSAM_VERSION_REQUIRED = 0.8
-    engine.__init__(self,"ktf","0.4")
+    engine.__init__(self,"ktf","0.5")
 
       
   #########################################################################
@@ -71,7 +71,7 @@ class ktf(engine):
 
       
 
-  def usage(self,message = None, error_detail = ""):
+  def usage(self,message = None, error_detail = "", exit=True):
       """ helping message"""
       if message:
           print "\n\tError %s:\n\t\t%s\n" % (error_detail,message)
@@ -79,14 +79,14 @@ class ktf(engine):
       else:
         print "\n  usage: \n \t python  run_tests.py \
                \n\t\t[ --help ] [ --create-template ] \
-               \n\t\t[ --submit | --build ] [ --what=<filter on case>]\
-               \n\t\t[ --list | --time ] [ --when=<filter on date>]\
-               \n\t\t[ --test-file=[test_file] ] [ --times=number of repetition> ] \
-               \n\t\t[ --wide ]  \
+               \n\t\t[ --submit | --build  [ --what=<filter on case>] [ --test-file=[test_file] ] [ --times=number of repetition> ] ]\
+               \n\t\t[ --list [ --what=<filter on case>] [ --test-file=[test_file] ] \
+               \n\t\t[ --status ] \
+               \n\t\t[ --time [ --wide ] [ --when=<filter on date>] [ --what=<filter on case>] ] \
                \n\t\t[ --debug ] [ --debug-level=[0|1|2] ] [ --fake ]  \
              \n"  
-
-      sys.exit(1)
+      if exit:
+        sys.exit(1)
 
 
   #########################################################################
