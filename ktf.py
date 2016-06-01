@@ -47,6 +47,7 @@ class ktf(engine):
     self.WWW                  = False
     self.STATUS               = False
     self.LIST                 = False
+    self.RESERVATION          = False
     
     self.JOB_ID = {}
     self.JOB_DIR = {}
@@ -78,12 +79,15 @@ class ktf(engine):
           print "\ttype ktf -h for the list of available options..."
       else:
         print "\n  usage: \n \t python  run_tests.py \
-               \n\t\t[ --help ] [ --create-template ] \
-               \n\t\t[ --submit | --build  [ --what=<filter on case>] [ --test-file=[test_file] ] [ --times=number of repetition> ] ]\
-               \n\t\t[ --list [ --what=<filter on case>] [ --test-file=[test_file] ] \
+               \n\t\t[ --help ] [ --init ] \
                \n\t\t[ --status ] \
-               \n\t\t[ --time [ --wide ] [ --when=<filter on date>] [ --what=<filter on case>] ] \
-               \n\t\t[ --debug ] [ --debug-level=[0|1|2] ] [ --fake ]  \
+               \n\t\t[ --submit | --build  [ --what=<filter on case>] [ --test-file=[case_file.ktf] ] \
+               \n\t\t                      [ --times=number of repetition> ] \
+               \n\t\t                      [--reservation=<reservation name]]\
+               \n\t\t[ --list              [ --what=<filter on case>] [ --test-file=[case_file.ktf] ] \
+               \n\t\t[ --time   [ --wide ] [ --when=<filter on date>] [ --what=<filter on case>] ] \
+               \n\t\t[ --info ]            [ --info-level=[0|1|2]  ] \
+               \n\t\t[ --debug ]           [ --debug-level=[0|1|2] ] [ --fake ]  \
              \n"  
       if exit:
         sys.exit(1)
@@ -96,7 +100,7 @@ class ktf(engine):
   def parse(self,args=sys.argv[1:]):
       """ parse the command line and set global _flags according to it """
 
-      self.TEST_FILE = "./%s_cases.txt" % self.MACHINE
+      self.TEST_FILE = "./%s_cases.ktf" % self.MACHINE
       self.TIMES = 1
       self.NB_COLUMNS_MAX = 3
       
@@ -106,8 +110,8 @@ class ktf(engine):
 
           opts, args = getopt.getopt(args, ["h", "l"], 
                             ["help", "machine=", "test=", "www", \
-                               "debug", "debug-level=", "create-template", "time", "build", "what=", "when=",\
-                               "list", "status", "test-file=","times=",
+                               "debug", "debug-level=", "init", "time", "build", "what=", "when=",\
+                               "list", "reservation=", "status", "test-file=","times=",
                                "fake",  "submit", "wide" ])    
       except getopt.GetoptError, err:
           # print help information and exit:
@@ -142,8 +146,8 @@ class ktf(engine):
           self.NB_COLUMNS_MAX = 9
           
       for option, argument in opts:
-        if option in ("--create-template"):
-          self.create_ktf_template()
+        if option in ("--init"):
+          self.create_ktf_init()
           sys.exit(0)
         elif option in ("--build"):
           self.BUILD = True
@@ -153,6 +157,8 @@ class ktf(engine):
           self.LIST = True
           if not(self.WHAT):
             self.WHAT = ' '
+        elif option in ("--reservation"):
+          self.RESERVATION = argument
         elif option in ("--status"):
           self.STATUS = True
         elif option in ("--submit"):
@@ -738,7 +744,7 @@ class ktf(engine):
     
     if not(os.path.exists(test_matrix_filename)):
       print "\n\t ERROR : missing test matrix file %s for machine %s" % (test_matrix_filename,self.MACHINE)
-      print "\n\t         ktf --create-test-template  can be called to create the templates"
+      print "\n\t         ktf --init  can be called to create the templates"
       print "\t\tor\n\t         ktf --test-file=<case file> can be called to read the cases from another file"
       if self.LIST:
         tags_ok = False
@@ -879,6 +885,10 @@ class ktf(engine):
         submit_command = tag["Submit"]
       else:
         submit_command = self.SUBMIT_COMMAND
+
+      if self.RESERVATION:
+        submit_command = submit_command + ' --reservation=%s' % self.RESERVATION
+        
       cmd = cmd + \
             "mkdir -p %s; cd %s ; tar fc - -C ../../tests/%s . | tar xvf - > /dev/null\n " % \
             ( dest_directory, dest_directory,tag["Directory"]) 
@@ -908,6 +918,15 @@ class ktf(engine):
               print "\n\tError... something went wrong when submitting job %s " % job_file
               print "\n           here's the error file just after submission : \n\t\t%s\n" % error_file
               print "\t\tERR> "+ "ERR> \t\t".join(open(error_file,"r").readlines())
+              print "           here's the submission command: \n\t\t%s\n" % cmd
+              job_script_content = open(job_file,'r').readlines()
+              print "\n           here's the job_script        : "
+              for chunk in splitList(job_script_content,12):
+               print  "".join(chunk)[:-1]
+               input_var = raw_input(" [ hit only return to continue or any other input to stop]")
+               if not(input_var == ""):
+                  print "..."
+                  break
               sys.exit(1)
           f = open(output_file,"r").readline()[:-1].split(" ")[-1]
           self.JOB_ID[os.path.abspath(os.path.dirname(job_file))] = f
@@ -928,7 +947,7 @@ class ktf(engine):
   # os.system wrapped to enable Trace if needed
   #########################################################################
 
-  def create_ktf_template(self):
+  def create_ktf_init(self):
 
     path = os.getenv('KTF_PATH')
     if not(path):
