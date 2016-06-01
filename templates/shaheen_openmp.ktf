@@ -10,7 +10,7 @@ Test		   NB_NODES   NB_TASKS          THREADS       TASKS_PER_SOCKET  TASKS_PER_
 
 # test openmp
  
-#KTF Directory = cray
+#KTF Experiment = cray
 #KTF COMPILE = cc -openmp
 #KTF EXECUTABLE = hello_openmp
 #KTF SOURCE = hello_openmp.c
@@ -22,7 +22,7 @@ Test		   NB_NODES   NB_TASKS          THREADS       TASKS_PER_SOCKET  TASKS_PER_
 16                  1         1            16            1       2   1-node
 32                  2         2            16            1       2   2-nodes
 
-#KTF Directory = intel
+#KTF Experiment = intel
 #KTF COMPILE = cc -openmp
 #KTF EXECUTABLE = hello_openmp
 #KTF SOURCE = hello_openmp.c

@@ -7,8 +7,8 @@ Test		   NB_TASKS        ELLAPSED_TIME
 #KTF SLURM_ACCOUNT = kxxxx
 #KTF PARTITION = workq
 #KTF EXECUTABLE = my_code
-#KTF Directory = simple
-
+#KTF Experiment = simple
+ 
 
 # test test1
 
