@@ -193,6 +193,7 @@ class ktf(engine):
       elif self.MONITOR:
         self.list_jobs_and_get_time()
       else:
+        self.ALREADY_AKNKOWLEDGE = False
         for nb_experiment in range(self.TIMES):
           self.run()
           if self.TIMES>1:
@@ -336,19 +337,18 @@ class ktf(engine):
 
     status_error = False
     
-    if self.DEBUG:
-      print len(self.JOB_ID)
+    self.log_debug('%s jobs to scan' % (len(self.JOB_ID)))
     jobs_to_check = list()
     for j in self.JOB_DIR.keys():
-      if self.DEBUG:
-        print j,self.JOB_DIR[j],self.job_status(j),
-      if self.job_status(j) in ("CANCELLED","COMPLETED"):
-        if self.DEBUG:
-          print 'not asking for ',j
+      status = self.job_status(j)
+      self.log_debug('status : /%s/ for job %s from dir >>%s<<' % (status,j,self.JOB_DIR[j]))
+      if status in ("CANCELLED","COMPLETED"):
+        self.log_debug ('--> not updating status')
       else:
         jobs_to_check.append(j)
         
     cmd = ["sacct","-j",",".join(jobs_to_check)]
+    self.log_debug('cmd so get new status : %s' % " ".join(cmd))
     try:
       output = subprocess.check_output(cmd)
     except:
@@ -363,7 +363,7 @@ class ktf(engine):
             print l
           j=l.split(" ")[0].split(".")[0]
           status=l.split(" ")[-8]
-          if status in ('PENDING','RUNNING','SUSPENDED','COMPLETED','CANCELLED','FAILED','TIMEOUT',
+          if status in ('PENDING','RUNNING','SUSPENDED','COMPLETED','CANCELLED','CANCELLED+','FAILED','TIMEOUT',
                         'NODE_FAIL','PREEMPTED','BOOT_FAIL','COMPLETING','CONFIGURING','RESIZING','SPECIAL_EXIT'):
             if self.DEBUG:
               print status,j
@@ -513,7 +513,7 @@ class ktf(engine):
   def get_ktf_status(self,path=".",level=0,timing=False,
                              dir_already_printed={}):
 
-    #self.get_current_jobs_status()
+    self.get_current_jobs_status()
     self.scan_jobs_and_get_time(path,level,timing,dir_already_printed)
 
     print '\n%s experimemnts availables : ' % len(self.timing_results["runs"])
@@ -787,7 +787,9 @@ class ktf(engine):
     # warning message is sent to the user if filter is applied on the jobs to run
     
     if len(self.WHAT):
-      self.log_info("the filter %s will be applied... Only following lines will be taken into account :",self.WHAT)
+      if not(self.ALREADY_AKNKOWLEDGE):
+        self.log_info("the filter %s will be applied... Only following lines will be taken into account :",self.WHAT)
+        
       self.direct_tag = {}
       for line in lines:
         line = self.clean_line(line)
@@ -803,7 +805,7 @@ class ktf(engine):
             print line
           matchObj = re.match("^.*"+self.WHAT+".*$",line)
           # prints all the tests that will be selected
-          if (matchObj):
+          if (matchObj) and not(self.ALREADY_AKNKOWLEDGE):
             print "\t",
             for k in line.split(" "):
               print "%20s " % k[:20],
@@ -812,10 +814,12 @@ class ktf(engine):
       if self.EXP:
         sys.exit(0)
       # askine to the user if he is ok or not
-      input_var = raw_input("Is this correct ? (yes/no) ")
-      if not(input_var == "yes"):
+      if not(self.ALREADY_AKNKOWLEDGE):
+        input_var = raw_input("Is this correct ? (yes/no) ")
+        if not(input_var == "yes"):
           print "ABORTING: No clear confirmation... giving up!"
           sys.exit(1)
+        self.ALREADY_AKNKOWLEDGE = True
           
       tags_ok = False
           
