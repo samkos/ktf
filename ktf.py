@@ -81,10 +81,10 @@ class ktf(engine):
         print "\n  usage: \n \t python  run_tests.py \
                \n\t\t[ --help ] [ --init ] \
                \n\t\t[ --status ] \
-               \n\t\t[ --launch | --build   [ --what=<filter on case>]   [ --exp-file=[exp_file.ktf] ] \
+               \n\t\t[ --launch | --build   [ --what=<filter on case>]   [ --case-file=[exp_file.ktf] ] \
                \n\t\t                       [ --times=number of repetition>  ] \
                \n\t\t                       [ --reservation=<reservation name] ]\
-               \n\t\t[ --exp                [ --what=<filter on test>] [ --exp-file=[exp_file.ktf] ] \
+               \n\t\t[ --exp                [ --what=<filter on test>] [ --case-file=[exp_file.ktf] ] \
                \n\t\t                       [ --today | --now ] ] \
                \n\t\t[ --monitor [ --wide ] [ --when=<filter on date>] [ --what=<filter on test>] ] \
                \n\t\t[ --info ]             [ --info-level=[0|1|2]  ] \
@@ -112,7 +112,7 @@ class ktf(engine):
           opts, args = getopt.getopt(args, ["h", "l"], 
                             ["help", "machine=", "test=", "www", \
                                "debug", "debug-level=", "init", "monitor", "build", "what=", "when=", "today", "now",\
-                               "exp", "reservation=", "status", "exp-file=","times=",
+                               "exp", "reservation=", "status", "case-file=","times=",
                                "fake",  "launch", "wide" ])    
       except getopt.GetoptError, err:
           # print help information and exit:
@@ -145,7 +145,7 @@ class ktf(engine):
           self.WHEN = datetime.datetime.now().strftime("%y%m%d-")
         elif option in ("--now"):
           self.WHEN = datetime.datetime.now().strftime("%y%m%d-%H")
-        elif option in ("--exp-file"):
+        elif option in ("--case-file"):
           self.TEST_FILE = argument
         elif option in ("--wide"):
           self.NB_COLUMNS_MAX = 9
@@ -748,9 +748,9 @@ class ktf(engine):
     now = time.strftime('%y%m%d-%H_%M_%S',time.localtime())
     
     if not(os.path.exists(test_matrix_filename)):
-      print "\n\t ERROR : missing test matrix file %s for machine %s" % (test_matrix_filename,self.MACHINE)
+      print "\n\t ERROR : missing test matrix file >>%s<< for machine %s " % (test_matrix_filename,self.MACHINE)
       print "\n\t         ktf --init  can be called to create the templates"
-      print "\t\tor\n\t         ktf --exp-file=<exp ktf file> can be called to read the cases from another file"
+      print "\t\tor\n\t         ktf --case-file=<exp ktf file> can be called to read the cases from another file"
       if self.EXP:
         tags_ok = False
         mandatory_fields = ["Test", "Experiment"]
