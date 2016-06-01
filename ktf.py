@@ -363,7 +363,8 @@ class ktf(engine):
             print l
           j=l.split(" ")[0].split(".")[0]
           status=l.split(" ")[-8]
-          if status in ('PENDING','TIMEOUT','FAILED','RUNNING','COMPLETED','CANCELLED','CANCELLED+','COMPLETED'):
+          if status in ('PENDING','RUNNING','SUSPENDED','COMPLETED','CANCELLED','FAILED','TIMEOUT',
+                        'NODE_FAIL','PREEMPTED','BOOT_FAIL','COMPLETING','CONFIGURING','RESIZING','SPECIAL_EXIT'):
             if self.DEBUG:
               print status,j
             if status[-1]=='+':
@@ -385,6 +386,7 @@ class ktf(engine):
   #########################################################################
   def job_status(self,id_or_file):
 
+    self.log_debug("[job_status] job_status on %s " % id_or_file)
     dirname="xxx"
     if os.path.isfile(id_or_file):
       dirname = os.path.abspath(os.path.dirname(id_or_file))
@@ -393,9 +395,10 @@ class ktf(engine):
 
     for key in [id_or_file,dirname]:
       if key in self.JOB_STATUS.keys():
-        return self.JOB_STATUS[key]
-    if self.DEBUG:
-      print "UNKNOWN for ",id_or_file,dirname
+        status = self.JOB_STATUS[key]
+        self.log_debug("[job_status] job_status on %s --> %s" % (id_or_file,status))
+        return status
+    self.log_debug("[job_status] job_status on %s --> UNKNOWN" % id_or_file)
     return "UNKNOWN"
 
    
@@ -407,19 +410,22 @@ class ktf(engine):
 
   def scan_jobs_and_get_time(self,path=".",level=0,timing=False,
                              dir_already_printed={}):
-    if level==0 and self.DEBUG:
-      print "\n\tBenchmarks Availables: "
 
-    
-    if self.DEBUG>3:
-      print "\n[list_jobs_and_get_time] scanning ",path," for timings=",timing
+    self.log_debug("[list_jobs_and_get_time] Benchmarks Availables: ",2)
+    self.log_debug("[list_jobs_and_get_time] scanning %s for timings=%s" % (path,timing),2)
+
 
     if not(os.path.exists(path)):
       return
     
     if not(os.path.isdir(path)):
       return
-      
+    
+    if self.WHEN and not(path=='.'):
+      if path.find(self.WHEN)<0:
+        self.log_debug('rejecting path >>%s<< because of filter applied' % path,2)
+        return
+    
     dirs = sorted(os.listdir(path))
 
 
@@ -441,6 +447,9 @@ class ktf(engine):
   #             dir_match = "??? (%s)" % path
 
             path_new = path + "/" + d
+
+            if self.WHEN and path_new.find(self.WHEN)<0:
+                continue
 
             timing_result = self.get_timing(path)
             
@@ -487,6 +496,12 @@ class ktf(engine):
           if not(d in ["R",".git","src"]):
             path_new = path + "/" + d
             if os.path.isdir(path_new):
+              if self.WHEN:
+                if path_new.find(self.WHEN)<0:
+                  self.log_debug('rejecting path >>%s<< because of filter applied' % path_new,2)
+                  next
+                else:
+                  self.log_debug('accepting path >>%s<< because of filter applied' % path_new,1)
               self.scan_jobs_and_get_time(path_new,level+1,timing,dir_already_printed)
 
 
