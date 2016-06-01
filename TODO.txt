@@ -19,3 +19,11 @@ make a create-template option, copying from example is not natural
 allow  __task__=32*__nodes
 
 make __Timer1_start__ and check if a timer is in the template
+
+add --singleton
+
+check the job.output
+
+fix the "   c "  in #KTF
+
+cable kmonitor even for job build
