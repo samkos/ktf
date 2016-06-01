@@ -549,6 +549,7 @@ class ktf(engine):
 
     nb_tests = 0
     total_time = {}
+    blank = ""
     self.timing_results["procs"].sort(key=int)
     #print self.timing_results["procs"]
 
@@ -572,7 +573,6 @@ class ktf(engine):
         print "%18s" % run[-15:],
       print
     
-
       for case in splitList(self.timing_results["cases"],1000,only=self.WHAT)[0]:
         nb_line += 1
         for proc in self.timing_results["procs"]:
@@ -627,6 +627,8 @@ class ktf(engine):
             print "%s%3s tests %s" % (blank,nb_runs,case)
       print "%45s" % "total time",
       for run in runs:
+        if not(run in total_time.keys()):
+          total_time[run]=0
         print "%15s   " % total_time[run],
       print "%s%3s" % (blank,nb_tests),'tests in total'
       print '-' * 125
