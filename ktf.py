@@ -42,7 +42,7 @@ class ktf(engine):
     self.BUILD = False
     self.MATRIX_FILE_TEMPLATE = ""
     self.FAKE                 = False
-    self.SUBMIT               = False
+    self.LAUNCH               = False
     self.MACHINE,self.TMPDIR  = get_machine()
     self.WWW                  = False
     self.STATUS               = False
@@ -81,7 +81,7 @@ class ktf(engine):
         print "\n  usage: \n \t python  run_tests.py \
                \n\t\t[ --help ] [ --init ] \
                \n\t\t[ --status ] \
-               \n\t\t[ --submit | --build  [ --what=<filter on case>] [ --test-file=[case_file.ktf] ] \
+               \n\t\t[ --launch | --build  [ --what=<filter on case>] [ --test-file=[case_file.ktf] ] \
                \n\t\t                      [ --times=number of repetition> ] \
                \n\t\t                      [--reservation=<reservation name]]\
                \n\t\t[ --list              [ --what=<filter on case>] [ --test-file=[case_file.ktf] ] \
@@ -112,7 +112,7 @@ class ktf(engine):
                             ["help", "machine=", "test=", "www", \
                                "debug", "debug-level=", "init", "time", "build", "what=", "when=",\
                                "list", "reservation=", "status", "test-file=","times=",
-                               "fake",  "submit", "wide" ])    
+                               "fake",  "launch", "wide" ])    
       except getopt.GetoptError, err:
           # print help information and exit:
           self.usage(err)
@@ -161,8 +161,8 @@ class ktf(engine):
           self.RESERVATION = argument
         elif option in ("--status"):
           self.STATUS = True
-        elif option in ("--submit"):
-          self.SUBMIT = True
+        elif option in ("--launch"):
+          self.LAUNCH = True
           self.BUILD = True
         elif option in ("--fake"):
           self.DEBUG = True
@@ -174,14 +174,14 @@ class ktf(engine):
 
       # second scan to get other arguments
       
-      if self.SUBMIT and self.TIME : 
-        self.usage("--time and --submit can not be asked simultaneously")
+      if self.LAUNCH and self.TIME : 
+        self.usage("--time and --launch can not be asked simultaneously")
 
       if self.BUILD and self.TIME : 
         self.usage("--time and --build can not be asked simultaneously")
 
-      if not(self.BUILD) and not(self.TIME) and not(self.SUBMIT) and not(self.STATUS) and not(self.LIST):
-        self.usage("at least --list, --build, --submit, --status, or --time should be asked")
+      if not(self.BUILD) and not(self.TIME) and not(self.LAUNCH) and not(self.STATUS) and not(self.LIST):
+        self.usage("at least --list, --build, --launch, --status, or --time should be asked")
 
       if self.STATUS:
         self.get_ktf_status()
@@ -908,7 +908,7 @@ class ktf(engine):
         cmd = "cd %s; %s %s > job.submit.out 2> job.submit.err " % \
             (os.path.dirname(job_file), submit_command,\
                os.path.basename(job_file))
-        if self.SUBMIT:
+        if self.LAUNCH:
           print "\tsubmitting job %s " % job_file
           self.wrapped_system(cmd,comment="submitting job %s" % job_file)
           output_file = "%s/job.submit.out" % os.path.dirname(job_file)
@@ -934,7 +934,7 @@ class ktf(engine):
             print 'job_id -> ',f
               
         else:
-          print "\tshould submit job %s (if --submit added) " % job_file
+          print "\tshould launch job %s (if --launch added) " % job_file
         #print cmd
       else:
         print "\t\tWarning... no job file found for machine %s in test directory %s " % \
