@@ -32,7 +32,7 @@ class ktf(engine):
   def __init__(self):
 
 
-    self.WORKSPACE_FILE = "workspace.pickle"
+    self.WORKSPACE_FILE = ".ktf.pickle"
     self.check_python_version()
     
     self.MONITOR = False
@@ -111,7 +111,7 @@ class ktf(engine):
 
           opts, args = getopt.getopt(args, ["h", "l"], 
                             ["help", "machine=", "test=", "www", \
-                               "debug", "debug-level=", "init", "monitor", "build", "what=", "when=",\
+                               "debug", "debug-level=", "init", "monitor", "build", "what=", "when=", "today", "now",\
                                "exp", "reservation=", "status", "exp-file=","times=",
                                "fake",  "launch", "wide" ])    
       except getopt.GetoptError, err:
@@ -141,6 +141,10 @@ class ktf(engine):
           self.WHAT = argument
         elif option in ("--when"):
           self.WHEN = argument
+        elif option in ("--today"):
+          self.WHEN = datetime.datetime.now().strftime("%y%m%d-")
+        elif option in ("--now"):
+          self.WHEN = datetime.datetime.now().strftime("%y%m%d-%H")
         elif option in ("--exp-file"):
           self.TEST_FILE = argument
         elif option in ("--wide"):
