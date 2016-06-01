@@ -35,7 +35,7 @@ class ktf(engine):
     self.WORKSPACE_FILE = "workspace.pickle"
     self.check_python_version()
     
-    self.TIME = False
+    self.MONITOR = False
     self.DEBUG = 0
     self.WHAT = ""
     self.WHEN = ""
@@ -46,7 +46,7 @@ class ktf(engine):
     self.MACHINE,self.TMPDIR  = get_machine()
     self.WWW                  = False
     self.STATUS               = False
-    self.LIST                 = False
+    self.EXP                 = False
     self.RESERVATION          = False
     
     self.JOB_ID = {}
@@ -81,13 +81,14 @@ class ktf(engine):
         print "\n  usage: \n \t python  run_tests.py \
                \n\t\t[ --help ] [ --init ] \
                \n\t\t[ --status ] \
-               \n\t\t[ --launch | --build  [ --what=<filter on case>] [ --test-file=[case_file.ktf] ] \
-               \n\t\t                      [ --times=number of repetition> ] \
-               \n\t\t                      [--reservation=<reservation name]]\
-               \n\t\t[ --list              [ --what=<filter on case>] [ --test-file=[case_file.ktf] ] \
-               \n\t\t[ --time   [ --wide ] [ --when=<filter on date>] [ --what=<filter on case>] ] \
-               \n\t\t[ --info ]            [ --info-level=[0|1|2]  ] \
-               \n\t\t[ --debug ]           [ --debug-level=[0|1|2] ] [ --fake ]  \
+               \n\t\t[ --launch | --build   [ --what=<filter on case>]   [ --exp-file=[exp_file.ktf] ] \
+               \n\t\t                       [ --times=number of repetition>  ] \
+               \n\t\t                       [ --reservation=<reservation name] ]\
+               \n\t\t[ --exp                [ --what=<filter on test>] [ --exp-file=[exp_file.ktf] ] \
+               \n\t\t                       [ --today | --now ] ] \
+               \n\t\t[ --monitor [ --wide ] [ --when=<filter on date>] [ --what=<filter on test>] ] \
+               \n\t\t[ --info ]             [ --info-level=[0|1|2]  ] \
+               \n\t\t[ --debug ]            [ --debug-level=[0|1|2] ]   \
              \n"  
       if exit:
         sys.exit(1)
@@ -110,8 +111,8 @@ class ktf(engine):
 
           opts, args = getopt.getopt(args, ["h", "l"], 
                             ["help", "machine=", "test=", "www", \
-                               "debug", "debug-level=", "init", "time", "build", "what=", "when=",\
-                               "list", "reservation=", "status", "test-file=","times=",
+                               "debug", "debug-level=", "init", "monitor", "build", "what=", "when=",\
+                               "exp", "reservation=", "status", "exp-file=","times=",
                                "fake",  "launch", "wide" ])    
       except getopt.GetoptError, err:
           # print help information and exit:
@@ -140,7 +141,7 @@ class ktf(engine):
           self.WHAT = argument
         elif option in ("--when"):
           self.WHEN = argument
-        elif option in ("--test-file"):
+        elif option in ("--exp-file"):
           self.TEST_FILE = argument
         elif option in ("--wide"):
           self.NB_COLUMNS_MAX = 9
@@ -151,10 +152,10 @@ class ktf(engine):
           sys.exit(0)
         elif option in ("--build"):
           self.BUILD = True
-        elif option in ("--time"):
-          self.TIME = True
-        elif option in ("-l","--list"):
-          self.LIST = True
+        elif option in ("--monitor"):
+          self.MONITOR = True
+        elif option in ("-l","--exp"):
+          self.EXP = True
           if not(self.WHAT):
             self.WHAT = ' '
         elif option in ("--reservation"):
@@ -174,18 +175,18 @@ class ktf(engine):
 
       # second scan to get other arguments
       
-      if self.LAUNCH and self.TIME : 
-        self.usage("--time and --launch can not be asked simultaneously")
+      if self.LAUNCH and self.MONITOR : 
+        self.usage("--monitor and --launch can not be asked simultaneously")
 
-      if self.BUILD and self.TIME : 
-        self.usage("--time and --build can not be asked simultaneously")
+      if self.BUILD and self.MONITOR : 
+        self.usage("--monitor and --build can not be asked simultaneously")
 
-      if not(self.BUILD) and not(self.TIME) and not(self.LAUNCH) and not(self.STATUS) and not(self.LIST):
-        self.usage("at least --list, --build, --launch, --status, or --time should be asked")
+      if not(self.BUILD) and not(self.MONITOR) and not(self.LAUNCH) and not(self.STATUS) and not(self.EXP):
+        self.usage("at least --exp, --build, --launch, --status, or --monitor should be asked")
 
       if self.STATUS:
         self.get_ktf_status()
-      elif self.TIME:
+      elif self.MONITOR:
         self.list_jobs_and_get_time()
       else:
         for nb_experiment in range(self.TIMES):
@@ -745,10 +746,10 @@ class ktf(engine):
     if not(os.path.exists(test_matrix_filename)):
       print "\n\t ERROR : missing test matrix file %s for machine %s" % (test_matrix_filename,self.MACHINE)
       print "\n\t         ktf --init  can be called to create the templates"
-      print "\t\tor\n\t         ktf --test-file=<case file> can be called to read the cases from another file"
-      if self.LIST:
+      print "\t\tor\n\t         ktf --exp-file=<exp ktf file> can be called to read the cases from another file"
+      if self.EXP:
         tags_ok = False
-        mandatory_fields = ["Test", "Directory"]
+        mandatory_fields = ["Test", "Experiment"]
         
         lines = ['']
       else:
@@ -758,7 +759,7 @@ class ktf(engine):
       print
     
       tags_ok = False
-      mandatory_fields = ["Test", "Directory"]
+      mandatory_fields = ["Test", "Experiment"]
 
       lines = open(test_matrix_filename).readlines()
 
@@ -786,8 +787,8 @@ class ktf(engine):
             for k in line.split(" "):
               print "%20s " % k[:20],
             print
-      # if --list exiting here
-      if self.LIST:
+      # if --exp exiting here
+      if self.EXP:
         sys.exit(0)
       # askine to the user if he is ok or not
       input_var = raw_input("Is this correct ? (yes/no) ")
@@ -891,7 +892,7 @@ class ktf(engine):
         
       cmd = cmd + \
             "mkdir -p %s; cd %s ; tar fc - -C ../../tests/%s . | tar xvf - > /dev/null\n " % \
-            ( dest_directory, dest_directory,tag["Directory"]) 
+            ( dest_directory, dest_directory,tag["Experiment"]) 
       
 
       # copying contents of the tests/common directory into the directory where the job will take place
