@@ -366,9 +366,9 @@ class ktf(engine):
     jobs_to_check = list()
     for j in DIRS.keys():
       status = self.job_status(j)
-      self.log_debug('status : /%s/ for job %s from dir >>%s<<' % (status,j,DIRS[j]))
+      self.log_debug('status : /%s/ for job %s from dir >>%s<<' % (status,j,DIRS[j]),1)
       if status in ("CANCELLED","COMPLETED","FAILED","TIMEOUT",'NODE_FAIL','BOOT_FAIL','SPECIAL_EXIT','REJECTED'):
-        self.log_debug ('--> not updating status')
+        self.log_debug ('--> not updating status',1)
       else:
         jobs_to_check.append(j)
     if len(jobs_to_check)==0:
@@ -413,7 +413,7 @@ class ktf(engine):
   #########################################################################
   def job_status(self,id_or_file):
 
-    self.log_debug("[job_status] job_status on %s " % id_or_file)
+    self.log_debug("[job_status] job_status on %s " % id_or_file,1)
     if id_or_file == -1:
       return 'REJECTED'
     
@@ -426,7 +426,7 @@ class ktf(engine):
     for key in [id_or_file,dirname]:
       if key in self.JOB_STATUS.keys():
         status = self.JOB_STATUS[key]
-        self.log_debug("[job_status] job_status on %s --> %s" % (id_or_file,status))
+        self.log_debug("[job_status] job_status on %s --> %s" % (id_or_file,status),1)
         return status
     self.log_debug("[job_status] job_status on %s --> UNKNOWN" % id_or_file)
     return "NOINFO"
@@ -684,7 +684,7 @@ class ktf(engine):
       return "NotYet/"+status# [:2]
 
     if os.path.getsize(path+"/job.err")>0:
-       status="!"+status
+       status=status+"!"
        #return "Error/"+status# [:2]
     
     fic = open(path+"/job.out")
