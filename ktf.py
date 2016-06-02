@@ -818,7 +818,7 @@ class ktf(engine):
     
     if len(self.WHAT):
       if not(self.ALREADY_AKNKOWLEDGE):
-        self.log_info("the filter %s will be applied... Only following lines will be taken into account :",self.WHAT)
+        self.log_info("the filter %s will be applied... Only following lines will be taken into account :" % self.WHAT)
         
       self.direct_tag = {}
       for line in lines:
