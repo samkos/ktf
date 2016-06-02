@@ -336,17 +336,41 @@ class ktf(engine):
   def get_current_jobs_status(self):
 
     status_error = False
+
+    DIRS = self.JOB_DIR
+    IDS = self.JOB_ID
+
+    DIRS_CANDIDATES = glob.glob('tests_*/*/job.submit.out')
+
+    if not(len(DIRS_CANDIDATES) == len(IDS)):
+      print IDS
+      self.log_info('Oops some status jobs are missing... let me try to reconstruct them...')
+      self.log_debug('%s dirs and %s jobs to scan ' % (len(DIRS),len(IDS)))
+      self.log_debug('%s dirs possibles... vs %s dirs in the box' % (len(DIRS_CANDIDATES),len(DIRS)))
+      for f in DIRS_CANDIDATES:
+        l = open(f,'r').readline()[:-1]
+        job_id  = l.split(" ")[-1]  
+        self.log_debug('j=/%s/ for %s ; l= >>%s<< ' % (job_id,f,l),1)
+        d = os.path.abspath(os.path.dirname(f))
+        if not(d in DIRS.keys()):
+          self.log_debug('adding j=/%s/ for %s ; l= >>%s<< ' % (job_id,d,l))
+          if len(job_id):
+            self.JOB_DIR[job_id] = d
+            self.JOB_ID[d] = job_id
+            self.JOB_STATUS[job_id] = self.JOB_STATUS[d] =  'NOINFO'
+          else:
+            self.JOB_ID[d] = -1
+            self.JOB_STATUS[d] = 'REJECTED'
+
     
-    self.log_debug('%s jobs to scan' % (len(self.JOB_ID)))
     jobs_to_check = list()
-    for j in self.JOB_DIR.keys():
+    for j in DIRS.keys():
       status = self.job_status(j)
-      self.log_debug('status : /%s/ for job %s from dir >>%s<<' % (status,j,self.JOB_DIR[j]))
-      if status in ("CANCELLED","COMPLETED"):
+      self.log_debug('status : /%s/ for job %s from dir >>%s<<' % (status,j,DIRS[j]))
+      if status in ("CANCELLED","COMPLETED","FAILED","TIMEOUT",'NODE_FAIL','BOOT_FAIL','SPECIAL_EXIT','REJECTED'):
         self.log_debug ('--> not updating status')
       else:
         jobs_to_check.append(j)
-
     if len(jobs_to_check)==0:
       return
     
@@ -372,7 +396,7 @@ class ktf(engine):
               print status,j
             if status[-1]=='+':
               status  = status[:-1]
-            self.JOB_STATUS[j] = self.JOB_STATUS[self.JOB_DIR[j]] = status
+            self.JOB_STATUS[j] = self.JOB_STATUS[DIRS[j]] = status
         except:
           if self.DEBUG:
             self.dump_exception('[get_current_job_status] parse job_status with j=%s' % j +"\n job status : "+l)
@@ -390,6 +414,9 @@ class ktf(engine):
   def job_status(self,id_or_file):
 
     self.log_debug("[job_status] job_status on %s " % id_or_file)
+    if id_or_file == -1:
+      return 'REJECTED'
+    
     dirname="xxx"
     if os.path.isfile(id_or_file):
       dirname = os.path.abspath(os.path.dirname(id_or_file))
