@@ -346,7 +346,10 @@ class ktf(engine):
         self.log_debug ('--> not updating status')
       else:
         jobs_to_check.append(j)
-        
+
+    if len(jobs_to_check)==0:
+      return
+    
     cmd = ["sacct","-j",",".join(jobs_to_check)]
     self.log_debug('cmd so get new status : %s' % " ".join(cmd))
     try:
@@ -399,7 +402,7 @@ class ktf(engine):
         self.log_debug("[job_status] job_status on %s --> %s" % (id_or_file,status))
         return status
     self.log_debug("[job_status] job_status on %s --> UNKNOWN" % id_or_file)
-    return "UNKNOWN"
+    return "NOINFO"
 
    
 
