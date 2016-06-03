@@ -1,0 +1,17 @@
+# test matrix for shaheen II
+
+Case		   NB_CORES        ELLAPSED_TIME            
+
+# Global variables
+
+#KTF EXECUTABLE = ./zephyr
+#KTF Experiment = strong
+#KTF INPUT = input
+
+
+# test of strong scalality
+
+16  	        16  		0:05:00
+32  	        32  		0:05:00
+128 	        128 		0:05:00      
+
