@@ -4,7 +4,6 @@
 #SBATCH --error=job.err
 #SBATCH --ntasks=__NB_TASKS__
 #SBATCH --time=__ELLAPSED_TIME__
-#SBATCH --partition=__PARTITION__
 #SBATCH -A __SLURM_ACCOUNT__
 
 cd __STARTING_DIR__ 

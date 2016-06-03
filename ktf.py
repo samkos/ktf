@@ -406,7 +406,7 @@ class ktf(engine):
     self.save_workspace()
 
     if status_error:
-      self.log_info('!WARNING! Error encountered scanning job status, run with --debug to know more')
+      self.log_info('[get_current_job_status] !WARNING! Error encountered scanning job status, run with --debug to know more')
       
   #########################################################################
   # get current job status
@@ -697,9 +697,9 @@ class ktf(engine):
 
     try:
       start_timing = t.split("======== start ==============")
-      #print len(start_timing),start_timing
+      self.log_debug("start_timing %s" % start_timing)
       if len(start_timing)<2:
-        return "NOST/"+status# [:2]
+        return "NOST/"+status
       from_date = start_timing[1].replace("__NEWLINE__","").replace("\n","").split(" ")
       (from_month,from_day,from_time) = (from_date[1],from_date[2],from_date[3])
       (from_hour,from_minute,from_second) = from_time.split(":")
@@ -711,15 +711,22 @@ class ktf(engine):
           
           ellapsed_time = ((int(now.day)*24.+int(now.hour))*60+int(now.minute))*60+int(now.second) \
                         - (((int(from_day)*24.+int(from_hour))*60+int(from_minute))*60+int(from_second))
-          return "%d/RU" % ellapsed_time 
-        return "NOEND/"+status# [:2] 
+          return "!%d/%s" % (ellapsed_time,status)
+        return "NotYet/"+status
+      
       from_date = to_date = "None"
+
       if len(start_timing)>1 and len(end_timing)>1:
-        to_date = end_timing[1].replace("__NEWLINE__","").replace("\n","").split(" ")
-        (to_month,to_day,to_time) = (to_date[1],to_date[2],to_date[3])
+        try:
+          to_date = end_timing[1].replace("__NEWLINE__","").replace("\n","").split(" ")
+          (to_month,to_day,to_time) = (to_date[1],to_date[2],to_date[3])
+        except:
+          self.dump_exception("[get_timing] Exception type 2 on time read: >>%s<< " % to_date)
+          ellapsed_time='ERROR_2'
+
         if self.DEBUG:
-          print "[get_time] from_time=!%s! start_timing=!%s! from_date" % (from_time,start_timing[1]), from_date
-          print "[get_time]   to_time=!%s!   end_timing=!%s! to_date" % (to_time,end_timing[1]) , to_date
+           print "[get_time] from_time=!%s! start_timing=!%s! from_date" % (from_time,start_timing[1]), from_date
+           print "[get_time]   to_time=!%s!   end_timing=!%s! to_date" % (to_time,end_timing[1]) , to_date
       
         (to_hour,to_minute,to_second) = to_time.split(":")
         ellapsed_time = ((int(to_day)*24.+int(to_hour))*60+int(to_minute))*60+int(to_second) \
@@ -733,10 +740,8 @@ class ktf(engine):
             except_print()
         ellapsed_time = "NOGOOD"
     except:
-      if self.DEBUG:
-        print "[get_timing] Exception type 2"
-        except_print()
-      ellapsed_time=-2
+      self.dump_exception("[get_timing] Exception type 2  ")
+      ellapsed_time='ERROR_2'
     if isinstance(ellapsed_time,basestring):
       return ellapsed_time
     return self.my_timing(path,ellapsed_time,status)
