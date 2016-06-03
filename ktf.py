@@ -473,7 +473,7 @@ class ktf(engine):
             p = re.match(r"(.*tests_.*_1.....-.._.._..)/.*",path)
             if p:
               dir_match = p.group(1)
-              print dir_match
+              self.log_debug('dir_match:>>%s<<',dir_match)
   #           else:
   #             dir_match = "??? (%s)" % path
 
@@ -515,7 +515,6 @@ class ktf(engine):
             if not(case_match in self.timing_results["cases"]):
               self.timing_results["cases"].append(case_match)
               self.CASE_LENGTH_MAX = max(self.CASE_LENGTH_MAX,len(case_match))
-              print len(case_match),self.CASE_LENGTH_MAX
                                          
             self.timing_results[k]=timing_result
             if self.DEBUG:
@@ -586,11 +585,11 @@ class ktf(engine):
     self.timing_results["procs"].sort(key=int)
     #print self.timing_results["procs"]
 
+    
 
     chunks = splitList(self.timing_results["runs"],self.NB_COLUMNS_MAX,only=self.WHEN)
 
     format_run =  ("%%%ss" % self.CASE_LENGTH_MAX )
-    print format_run
     line_sep  = '-' * (4+self.NB_COLUMNS_MAX * 20 +self.CASE_LENGTH_MAX*2)
 
     print
@@ -598,6 +597,8 @@ class ktf(engine):
 
     nb_column = 0
     for runs in chunks:
+
+      blank = " "* 19 *( self.NB_COLUMNS_MAX - len(runs))
 
       self.log_debug('runs=[%s], nb_column=%s' % (",".join(runs),nb_column),2)
       nb_column_start = nb_column
@@ -607,7 +608,7 @@ class ktf(engine):
 
       for run in runs:
         print "%18s" % run[-15:],
-      print '  # tests / Runs'
+      print '%s  # tests / Runs' % blank
     
       for case in splitList(self.timing_results["cases"],1000,only=self.WHAT)[0]:
         nb_line += 1
@@ -657,9 +658,6 @@ class ktf(engine):
                     pass
               else:
                 print "%18s" % "-",
-            blank = ""
-            for r in range(len(runs),self.NB_COLUMNS_MAX):
-              blank = blank + " "*19
             print "%s%3s / %s" % (blank,nb_runs,case)
       print format_run  % "total time",
       for run in runs:
