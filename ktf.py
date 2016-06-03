@@ -805,7 +805,7 @@ class ktf(engine):
       print "\t\tor\n\t         ktf --case-file=<exp ktf file> can be called to read the cases from another file"
       if self.EXP:
         tags_ok = False
-        mandatory_fields = ["Test", "Experiment"]
+        mandatory_fields = ["Case", "Experiment"]
         
         lines = ['']
       else:
@@ -815,7 +815,7 @@ class ktf(engine):
       print
     
       tags_ok = False
-      mandatory_fields = ["Test", "Experiment"]
+      mandatory_fields = ["Case", "Experiment"]
 
       lines = open(test_matrix_filename).readlines()
 
@@ -939,7 +939,7 @@ class ktf(engine):
       # all tags are valued at this time
       # creating the job directory indexed by time
 
-      dest_directory = "tests_%s_%s/%s" % (self.MACHINE,now,tag["Test"])
+      dest_directory = "tests_%s_%s/%s" % (self.MACHINE,now,tag["Case"])
       cmd = ""
 
       print "\tcreating test directory %s for %s: " % (dest_directory,self.MACHINE)

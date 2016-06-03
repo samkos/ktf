@@ -1,6 +1,6 @@
 # test matrix for shaheen II
 
-Test		   NB_TASKS        ELLAPSED_TIME            
+Case	   NB_TASKS        ELLAPSED_TIME            
 
 # Global variables
 
@@ -12,6 +12,6 @@ Test		   NB_TASKS        ELLAPSED_TIME
 
 # test test1
 
-Code_test1_512	     512             0:10:00         
-Code_test1_256	     256             0:10:00   
-Code_test1_128	     128             0:10:00   
+512	     512             0:10:00         
+256	     256             0:10:00   
+128	     128             0:10:00   

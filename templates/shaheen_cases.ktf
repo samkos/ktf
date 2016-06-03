@@ -1,6 +1,6 @@
 # test matrix for shaheen II
 
-Test		   NB_NODES   NB_TASKS          THREADS       TASKS_PER_SOCKET  TASKS_PER_NODE FILTER
+Case		   NB_NODES   NB_TASKS          THREADS       TASKS_PER_SOCKET  TASKS_PER_NODE FILTER
 
 # Global variables
 
