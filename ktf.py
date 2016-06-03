@@ -546,7 +546,7 @@ class ktf(engine):
     self.get_current_jobs_status()
     self.scan_jobs_and_get_time(path,level,timing,dir_already_printed)
 
-    print '\n%s experimemnts availables : ' % len(self.timing_results["runs"])
+    print '\n%s experiments availables : ' % len(self.timing_results["runs"])
     chunks = splitList(self.timing_results["runs"],5)
     for runs in chunks:
       for run in runs:
@@ -826,6 +826,8 @@ class ktf(engine):
         self.log_info("the filter %s will be applied... Only following lines will be taken into account :" % self.WHAT)
         
       self.direct_tag = {}
+      nb_case = 1
+      
       for line in lines:
         line = self.clean_line(line)
         if self.additional_tag(line):
@@ -841,7 +843,8 @@ class ktf(engine):
           matchObj = re.match("^.*"+self.WHAT+".*$",line)
           # prints all the tests that will be selected
           if (matchObj) and not(self.ALREADY_AKNKOWLEDGE):
-            print "\t",
+            print "%3d: " % (nb_case),
+            nb_case = nb_case + 1
             for k in line.split(" "):
               print "%20s " % k[:20],
             print
