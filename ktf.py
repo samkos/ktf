@@ -39,6 +39,7 @@ class ktf(engine):
     self.DEBUG = 0
     self.WHAT = ""
     self.WHEN = ""
+    self.NB = 0
     self.BUILD = False
     self.MATRIX_FILE_TEMPLATE = ""
     self.FAKE                 = False
@@ -83,6 +84,7 @@ class ktf(engine):
                \n\t\t[ --help ] [ --init ] \
                \n\t\t[ --status ] \
                \n\t\t[ --launch | --build   [ --what=<filter on case>]   [ --case-file=[exp_file.ktf] ] \
+               \n\t\t                       [ --nb=number of expermiment>  ] \
                \n\t\t                       [ --times=number of repetition>  ] \
                \n\t\t                       [ --reservation=<reservation name] ]\
                \n\t\t[ --exp                [ --what=<filter on test>] [ --case-file=[exp_file.ktf] ] \
@@ -112,8 +114,9 @@ class ktf(engine):
 
           opts, args = getopt.getopt(args, ["h", "l"], 
                             ["help", "machine=", "test=", "www", \
-                               "debug", "debug-level=", "init", "monitor", "build", "what=", "when=", "today", "now",\
-                               "exp", "reservation=", "status", "case-file=","times=",
+                             "debug", "debug-level=", "init", "monitor", "build", "nb=", \
+                            "what=", "when=", "today", "now",\
+                             "exp", "reservation=", "status", "case-file=","times=",
                                "fake",  "launch", "wide" ])    
       except getopt.GetoptError, err:
           # print help information and exit:
@@ -140,6 +143,8 @@ class ktf(engine):
           self.log.setLevel(logging.DEBUG)
         elif option in ("--what"):
           self.WHAT = argument
+        elif option in ("--nb"):
+          self.NB = int(argument)
         elif option in ("--when"):
           self.WHEN = argument
         elif option in ("--today"):
@@ -407,7 +412,7 @@ class ktf(engine):
     self.save_workspace()
 
     if status_error:
-      self.log_info('[get_current_job_status] !WARNING! Error encountered scanning job status, run with --debug to know more')
+      self.log_info('[get_current_job_status] !WARNING! Error encountered scanning job status, run with --debug to know more',1)
       
   #########################################################################
   # get current job status
@@ -669,7 +674,7 @@ class ktf(engine):
       self.log_debug('at the end of the runs chunk nb_column=%s' % (nb_column),2)
 
     if status_error_links:
-      self.log_info('!WARNING! Error encountered setting symbolic links in R/ directory, run with --debug to know more')
+      self.log_info('!WARNING! Error encountered setting symbolic links in R/ directory, run with --debug to know more',1)
 
   #########################################################################
   # calculation of ellapsed time based on values dumped in job.out
@@ -825,9 +830,11 @@ class ktf(engine):
 
     # warning message is sent to the user if filter is applied on the jobs to run
     
-    if len(self.WHAT):
-      if not(self.ALREADY_AKNKOWLEDGE):
-        self.log_info("the filter %s will be applied... Only following lines will be taken into account :" % self.WHAT)
+    if len(self.WHAT) or self.NB:
+      if not(self.ALREADY_AKNKOWLEDGE) and not(self.WHAT==' '):
+        self.log_info("the filter %s will be applied... Only following lines will be taken into account : " % (self.WHAT))
+      if self.NB :
+        self.log_info("only case %s will be taken " % self.NB)
         
       self.direct_tag = {}
       nb_case = 1
@@ -851,11 +858,14 @@ class ktf(engine):
               for k in self.direct_tag.keys():
                 print "%6s" % k,
               print
-            print "%3d: " % (nb_case),
+
+            if not(self.NB) or self.NB==nb_case:
+              print "%3d: " % (nb_case),
+              for k in line.split(" "):
+                print "%6s " % k[:20],
+              print
             nb_case = nb_case + 1
-            for k in line.split(" "):
-              print "%6s " % k[:20],
-            print
+
       # if --exp exiting here
       if self.EXP:
         sys.exit(0)
@@ -873,6 +883,7 @@ class ktf(engine):
     # it needs to be evaluated on the fly to apply right tag value at a given job
     self.direct_tag = {}
 
+    nb_case = 1
     # parsing of the input file starts...
     for line in lines:
       line = self.clean_line(line)
@@ -896,9 +907,13 @@ class ktf(engine):
         line2scan = line2scan+" "+self.direct_tag[k]
       # if job case are filtered, apply it, jumping to next line if filter not match
       matchObj = re.match("^.*"+self.WHAT+".*$",line2scan)
+      nb_case = nb_case+1
       if not(matchObj):
         continue
 
+      if self.NB and not(self.NB==nb_case-1):
+        continue
+      
       if self.DEBUG:
         print "testing : ",line
         print "tags_names:",tags_names

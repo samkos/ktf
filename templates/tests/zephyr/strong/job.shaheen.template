@@ -9,7 +9,7 @@ cd __STARTING_DIR__
 echo ======== start ==============
 date
 echo ======== start ==============
-srun -o 0 --ntasks=__NB_CORES__  --cpus-per-task=1 --hint=nomultithread --ntasks-per-node=32 --ntasks-per-socket=16 --ntasks-per-core=1 --cpu_bind=cores   __EXECUTABLE__ __INPUT__
+srun -o 0 --ntasks=__NB_CORES__  --cpus-per-task=1 --hint=nomultithread --ntasks-per-node=32 --ntasks-per-socket=16 --ntasks-per-core=1 --cpu_bind=cores  zephyr input
 echo ======== end ==============
 date
 echo ======== end ==============
