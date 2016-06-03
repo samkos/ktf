@@ -56,6 +56,7 @@ class ktf(engine):
     self.timing_results["procs"] = []
     self.timing_results["cases"] = []
     self.timing_results["runs"] = []
+    self.CASE_LENGTH_MAX = 0
 
     if os.path.exists(self.WORKSPACE_FILE):
       self.load_workspace()
@@ -340,7 +341,7 @@ class ktf(engine):
     DIRS = self.JOB_DIR
     IDS = self.JOB_ID
 
-    DIRS_CANDIDATES = glob.glob('tests_*/*/job.submit.out')
+    DIRS_CANDIDATES = find_files('.','job.submit.out')
 
     if not(len(DIRS_CANDIDATES) == len(IDS)):
       print IDS
@@ -458,7 +459,6 @@ class ktf(engine):
     
     dirs = sorted(os.listdir(path))
 
-
     if len(dirs):
       #if level == SCANNING_FROM :
       #  print "%s%d %s Availables: " % ("\t"*(level+1),len(dirs),ArboNames[level])
@@ -470,9 +470,10 @@ class ktf(engine):
             if self.DEBUG:
               print "[list_jobs_and_get_time] candidate : %s " % (path+"/"+"job.submit.out")
             # formatting the dirname
-            p = re.match(r"(.*tests_.*)/.*",path)
+            p = re.match(r"(.*tests_.*_1.....-.._.._..)/.*",path)
             if p:
               dir_match = p.group(1)
+              print dir_match
   #           else:
   #             dir_match = "??? (%s)" % path
 
@@ -502,7 +503,7 @@ class ktf(engine):
               if p:
                 proc_match = p.group(1)
               else:
-                proc_match = "???"
+                proc_match = "0"
             k = "%s.%s.%s" % (dir_match,proc_match, case_match)
 
             if not(k in self.timing_results.keys()):
@@ -513,7 +514,9 @@ class ktf(engine):
               self.timing_results["procs"].append(proc_match)
             if not(case_match in self.timing_results["cases"]):
               self.timing_results["cases"].append(case_match)
-    
+              self.CASE_LENGTH_MAX = max(self.CASE_LENGTH_MAX,len(case_match))
+              print len(case_match),self.CASE_LENGTH_MAX
+                                         
             self.timing_results[k]=timing_result
             if self.DEBUG:
               print "\t\t%10s s \t %5s %40s " % ( timing_result, proc_match, case_match)
@@ -572,7 +575,7 @@ class ktf(engine):
     self.get_current_jobs_status()
 
     self.scan_jobs_and_get_time(path,level,timing,dir_already_printed)
-
+    
     if os.path.exists('R'):
       shutil.rmtree('R')
     os.mkdir('R')
@@ -586,22 +589,25 @@ class ktf(engine):
 
     chunks = splitList(self.timing_results["runs"],self.NB_COLUMNS_MAX,only=self.WHEN)
 
-    print
-    print '-' * 125
+    format_run =  ("%%%ss" % self.CASE_LENGTH_MAX )
+    print format_run
+    line_sep  = '-' * (4+self.NB_COLUMNS_MAX * 20 +self.CASE_LENGTH_MAX*2)
 
-    
+    print
+    print line_sep
+
     nb_column = 0
     for runs in chunks:
 
       self.log_debug('runs=[%s], nb_column=%s' % (",".join(runs),nb_column),2)
       nb_column_start = nb_column
       nb_line = 0
-      print "%45s" % "Runs",
-    
+      
+      print format_run % "Runs",
 
       for run in runs:
         print "%18s" % run[-15:],
-      print
+      print '  # tests / Runs'
     
       for case in splitList(self.timing_results["cases"],1000,only=self.WHAT)[0]:
         nb_line += 1
@@ -614,7 +620,7 @@ class ktf(engine):
               nb_runs += 1
           if nb_runs:
             nb_column = nb_column_start
-            print "%45s" % case,
+            print format_run  % case,
             for run in runs:
               nb_column += 1
               k = "%s.%s.%s" % (run,proc,case)
@@ -654,14 +660,14 @@ class ktf(engine):
             blank = ""
             for r in range(len(runs),self.NB_COLUMNS_MAX):
               blank = blank + " "*19
-            print "%s%3s tests %s" % (blank,nb_runs,case)
-      print "%45s" % "total time",
+            print "%s%3s / %s" % (blank,nb_runs,case)
+      print format_run  % "total time",
       for run in runs:
         if not(run in total_time.keys()):
           total_time[run]=0
         print "%15s   " % total_time[run],
       print "%s%3s" % (blank,nb_tests),'tests in total'
-      print '-' * 125
+      print line_sep
       self.log_debug('at the end of the runs chunk nb_column=%s' % (nb_column),2)
 
     if status_error_links:
@@ -843,10 +849,14 @@ class ktf(engine):
           matchObj = re.match("^.*"+self.WHAT+".*$",line)
           # prints all the tests that will be selected
           if (matchObj) and not(self.ALREADY_AKNKOWLEDGE):
+            if nb_case==1:
+              for k in self.direct_tag.keys():
+                print "%6s" % k,
+              print
             print "%3d: " % (nb_case),
             nb_case = nb_case + 1
             for k in line.split(" "):
-              print "%20s " % k[:20],
+              print "%6s " % k[:20],
             print
       # if --exp exiting here
       if self.EXP:
@@ -939,7 +949,7 @@ class ktf(engine):
       # all tags are valued at this time
       # creating the job directory indexed by time
 
-      dest_directory = "tests_%s_%s/%s" % (self.MACHINE,now,tag["Case"])
+      dest_directory = "tests_%s_%s/%s/%s" % (self.MACHINE,now,tag['Experiment'],tag["Case"])
       cmd = ""
 
       print "\tcreating test directory %s for %s: " % (dest_directory,self.MACHINE)
@@ -952,18 +962,21 @@ class ktf(engine):
 
       if self.RESERVATION:
         submit_command = submit_command + ' --reservation=%s' % self.RESERVATION
-        
+
+      root_directory = os.getcwd()
       cmd = cmd + \
-            "mkdir -p %s; cd %s ; tar fc - -C ../../tests/%s . | tar xvf - > /dev/null\n " % \
-            ( dest_directory, dest_directory,tag["Experiment"]) 
+            "mkdir -p %s; cd %s ; tar fc - -C %s/tests/%s . | tar xvf - > /dev/null\n " % \
+            ( dest_directory, dest_directory,root_directory,tag["Experiment"]) 
       
 
-      # copying contents of the tests/common directory into the directory where the job will take place
-      if os.path.exists('tests/common'):
-        cmd = cmd + \
-            "tar fc - -C ../../tests/common . | tar xvf - > /dev/null "
-      
-      self.wrapped_system(cmd,comment="copying in %s" % dest_directory)
+      # copying contents of the tests/common and tests/<Experiment>/common directory into the directory where the job will take place
+      for d in ['tests/common','tests/%s/../common' % tag["Experiment"]]:
+        common_dir = '%s/%s' % (root_directory,d)
+        if os.path.exists(common_dir):
+          cmd = cmd + \
+                "tar fc - -C %s . | tar xvf - > /dev/null \n " % (common_dir)
+          self.wrapped_system(cmd,comment="copying %s in %s" % (common_dir,dest_directory))
+          
 
       tag["STARTING_DIR"] = "."
       job_file=self.substitute(dest_directory,tag)

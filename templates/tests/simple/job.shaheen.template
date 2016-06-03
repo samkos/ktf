@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=__Test__
+#SBATCH --job-name=__Case__
 #SBATCH --output=job.out
 #SBATCH --error=job.err
 #SBATCH --ntasks=__NB_TASKS__
