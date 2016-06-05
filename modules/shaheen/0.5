@@ -1,0 +1,41 @@
+#%Module
+
+module-whatis "Kaust Testing Framework"
+
+proc ModulesHelp { } {
+    puts stderr "
+Kaust Testing Framework tool providing a way to spwan automatically jobs on an HPC machine. try
+    ktf --help
+to know more"
+}
+
+module load python/2.7.9
+
+set name ktf
+set version 0.5
+set compiler sles11.3_gnu5.1.0
+set prefix /sw/xc40/ktf/$version/$compiler/ktf
+set KTF_PATH $prefix
+
+setenv KTF_PATH $prefix
+
+#set-alias ktf if [-e run_tests.py] then  ktf; else python $prefix/run_tests.py; fi
+set-alias k   "ktf"
+set-alias ki  "python $prefix/run_tests.py --init"
+set-alias kb  "ktf --build "
+set-alias kl  "ktf --launch "
+set-alias km  "ktf --monitor "
+set-alias kmt "ktf --monitor --today"
+set-alias kmn "ktf --monitor --now"
+set-alias ks  "ktf --status "
+set-alias ke  "ktf --exp "
+set-alias kw  "python $prefix/server.py --www"
+
+
+prepend-path PYTHONPATH $KTF_PATH
+prepend-path LD_LIBRARY_PATH $KTF_PATH:$KTF_PATH/lib
+prepend-path PATH $prefix
+prepend-path MANPATH $KTF_PATH/man
+
+
+
