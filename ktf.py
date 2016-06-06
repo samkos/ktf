@@ -717,11 +717,11 @@ class ktf(engine):
       if len(end_timing)<2:
         if status=="RUNNING":
           now = datetime.datetime.now()
-          
-          ellapsed_time = ((int(now.day)*24.+int(now.hour))*60+int(now.minute))*60+int(now.second) \
+        elif status in ['COMPLETED','FAILED']:
+          now=datetime.datetime.fromtimestamp(os.path.getmtime(path+"/job.out"))
+        ellapsed_time = ((int(now.day)*24.+int(now.hour))*60+int(now.minute))*60+int(now.second) \
                         - (((int(from_day)*24.+int(from_hour))*60+int(from_minute))*60+int(from_second))
-          return "!%d/%s" % (ellapsed_time,status)
-        return "NotYet/"+status
+        return "!%d/%s" % (ellapsed_time,status)
       
       from_date = to_date = "None"
 
