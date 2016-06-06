@@ -3,12 +3,19 @@
 
 fields printed when filtering
 
-number printed when filtering
+number printed when filtering   ok
 
 man page
 
 README for bitbucket
 
-fixing bug ERROR2
+fixing bug ERROR2  
 
 template zephyr
+
+
+make a create-template option, copying from example is not natural
+
+allow  __task__=32*__nodes
+
+make __Timer1_start__ and check if a timer is in the template

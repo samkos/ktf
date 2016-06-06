@@ -84,7 +84,7 @@ class ktf(engine):
                \n\t\t[ --help ] [ --init ] \
                \n\t\t[ --status ] \
                \n\t\t[ --launch | --build   [ --what=<filter on case>]   [ --case-file=[exp_file.ktf] ] \
-               \n\t\t                       [ --nb=number of expermiment>  ] \
+               \n\t\t                       [ --nb=<number of expermiment>   ] \
                \n\t\t                       [ --times=number of repetition>  ] \
                \n\t\t                       [ --reservation=<reservation name] ]\
                \n\t\t[ --exp                [ --what=<filter on test>] [ --case-file=[exp_file.ktf] ] \
