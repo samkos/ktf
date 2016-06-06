@@ -381,7 +381,7 @@ class ktf(engine):
       return
     
     cmd = ["sacct","-j",",".join(jobs_to_check)]
-    self.log_debug('cmd so get new status : %s' % " ".join(cmd))
+    self.log_debug('cmd so get new status : ///%s///' % " ".join(cmd))
     try:
       output = subprocess.check_output(cmd)
     except:
@@ -392,20 +392,23 @@ class ktf(engine):
       output=""
     for l in output.split("\n"):
         try:
-          if self.DEBUG:
-            print l
+          p = re.compile("\s+")
+          l = p.sub(' ',l[:-1])
+          self.log_debug('l=/%s/' % l)
           j=l.split(" ")[0].split(".")[0]
-          status=l.split(" ")[-8]
-          if status in ('PENDING','RUNNING','SUSPENDED','COMPLETED','CANCELLED','CANCELLED+','FAILED','TIMEOUT',
-                        'NODE_FAIL','PREEMPTED','BOOT_FAIL','COMPLETING','CONFIGURING','RESIZING','SPECIAL_EXIT'):
-            if self.DEBUG:
-              print status,j
-            if status[-1]=='+':
-              status  = status[:-1]
-            self.JOB_STATUS[j] = self.JOB_STATUS[DIRS[j]] = status
+          fields = l.split(" ")
+          if len(fields)>2:
+            status=fields[-2]
+            if status in ('PENDING','RUNNING','SUSPENDED','COMPLETED','CANCELLED','CANCELLED+','FAILED','TIMEOUT',
+                          'NODE_FAIL','PREEMPTED','BOOT_FAIL','COMPLETING','CONFIGURING','RESIZING','SPECIAL_EXIT'):
+              if self.DEBUG:
+                print status,j
+              if status[-1]=='+':
+                status  = status[:-1]
+              self.JOB_STATUS[j] = self.JOB_STATUS[DIRS[j]] = status
         except:
           if self.DEBUG:
-            self.dump_exception('[get_current_job_status] parse job_status with j=%s' % j +"\n job status : "+l)
+            self.dump_exception('[get_current_job_status] parse job_status \n\t with j=/%s/ \n\t with job_status=/%s/ ' % (j,l))
           else:
             status_error = True
           pass
@@ -706,7 +709,7 @@ class ktf(engine):
 
     try:
       start_timing = t.split("======== start ==============")
-      self.log_debug("start_timing %s" % start_timing)
+      self.log_debug("start_timing %s" % start_timing,3)
       if len(start_timing)<2:
         return "NOST/"+status
       from_date = start_timing[1].replace("__NEWLINE__","").replace("\n","").split(" ")
@@ -717,7 +720,7 @@ class ktf(engine):
       if len(end_timing)<2:
         if status=="RUNNING":
           now = datetime.datetime.now()
-        elif status in ['COMPLETED','FAILED']:
+        else:
           now=datetime.datetime.fromtimestamp(os.path.getmtime(path+"/job.out"))
         ellapsed_time = ((int(now.day)*24.+int(now.hour))*60+int(now.minute))*60+int(now.second) \
                         - (((int(from_day)*24.+int(from_hour))*60+int(from_minute))*60+int(from_second))
