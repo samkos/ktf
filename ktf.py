@@ -694,9 +694,10 @@ class ktf(engine):
       #sk print 'NotYet for %s' % path+'/job.out'
       return "NotYet/"+status# [:2]
 
-    if os.path.getsize(path+"/job.err")>0:
-       status=status+"!"
-       #return "Error/"+status# [:2]
+    if os.path.exists(path+"/job.err"):
+      if os.path.getsize(path+"/job.err")>0:
+        status=status+"!"
+        #return "Error/"+status# [:2]
     
     fic = open(path+"/job.out")
     t = "__NEWLINE__".join(fic.readlines())
