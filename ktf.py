@@ -978,17 +978,17 @@ class ktf(engine):
 
       root_directory = os.getcwd()
       cmd = cmd + \
-            "mkdir -p %s; cd %s ; tar fc - -C %s/tests/%s . | tar xvf - > /dev/null\n " % \
+            "mkdir -p %s\n cd %s \n tar fc - -C %s/tests/%s . | tar xvf - > /dev/null " % \
             ( dest_directory, dest_directory,root_directory,tag["Experiment"]) 
       
-
       # copying contents of the tests/common and tests/<Experiment>/common directory into the directory where the job will take place
       for d in ['tests/common','tests/%s/../common' % tag["Experiment"]]:
         common_dir = '%s/%s' % (root_directory,d)
         if os.path.exists(common_dir):
           cmd = cmd + \
-                "tar fc - -C %s . | tar xvf - > /dev/null \n " % (common_dir)
-          self.wrapped_system(cmd,comment="copying %s in %s" % (common_dir,dest_directory))
+                "\ntar fc - -C %s . | tar xvf - > /dev/null  " % (common_dir)
+
+      self.wrapped_system(cmd,comment="copying %s in %s" % (common_dir,dest_directory))
           
 
       tag["STARTING_DIR"] = "."
