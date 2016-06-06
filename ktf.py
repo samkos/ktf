@@ -349,7 +349,6 @@ class ktf(engine):
     DIRS_CANDIDATES = find_files('.','job.submit.out')
 
     if not(len(DIRS_CANDIDATES) == len(IDS)):
-      print IDS
       self.log_info('Oops some status jobs are missing... let me try to reconstruct them...')
       self.log_debug('%s dirs and %s jobs to scan ' % (len(DIRS),len(IDS)))
       self.log_debug('%s dirs possibles... vs %s dirs in the box' % (len(DIRS_CANDIDATES),len(DIRS)))
