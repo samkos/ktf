@@ -611,13 +611,20 @@ class ktf(engine):
       nb_column_start = nb_column
       nb_line = 0
       
-      print format_run % "Runs",
+      header = format_run % "Runs"
 
       for run in runs:
-        print "%18s" % run[-15:],
-      print '%s  # tests / Runs' % blank
-    
-      for case in splitList(self.timing_results["cases"],1000,only=self.WHAT)[0]:
+        header = header + " %18s" % run[-15:]
+      header = header + '%s  # tests / Runs' % blank
+
+      cases = splitList(self.timing_results["cases"],1000,only=self.WHAT)
+
+      if len(cases)==0:
+        continue
+
+      print header
+      
+      for case in cases[0]:
         nb_line += 1
         for proc in self.timing_results["procs"]:
           k0 = "%s.%s" % (proc, case)
@@ -628,7 +635,7 @@ class ktf(engine):
               nb_runs += 1
           if nb_runs:
             nb_column = nb_column_start
-            print format_run  % case,
+            s = format_run  % case
             for run in runs:
               nb_column += 1
               k = "%s.%s.%s" % (run,proc,case)
@@ -650,7 +657,7 @@ class ktf(engine):
                   self.log_debug( '\nZZZZZZZZZZZ symbolic link failed for ' + "ln -s ."+path + " R/%s" % shortcut)
                   status_error_links = True
                 try:
-                  print "%15s %s" % (t,shortcut),
+                  s = s + " %15s %s" % (t,shortcut)
                 except:
                   print 'range error ',nb_line-1,nb_column-1
                   sys.exit(1)
@@ -664,14 +671,16 @@ class ktf(engine):
                   except:
                     pass
               else:
-                print "%18s" % "-",
-            print "%s%3s / %s" % (blank,nb_runs,case)
-      print format_run  % "total time",
+                s = s + "%12s       " % "-"
+            s = s +"%s%3s / %s" % (blank,nb_runs,case)
+            print s
+      s = format_run  % "total time"
       for run in runs:
         if not(run in total_time.keys()):
           total_time[run]=0
-        print "%15s   " % total_time[run],
-      print "%s%3s" % (blank,nb_tests),'tests in total'
+        s = s + " %18s" % total_time[run]
+      s = s +  "%s%3s" % (blank,nb_tests) + ' tests in total'
+      print s
       print line_sep
       self.log_debug('at the end of the runs chunk nb_column=%s' % (nb_column),2)
 
@@ -692,7 +701,7 @@ class ktf(engine):
 
     if not(os.path.exists(path+"/job.out")):
       #sk print 'NotYet for %s' % path+'/job.out'
-      return "NotYet/"+status# [:2]
+      return "None/"+status# [:2]
 
     if os.path.exists(path+"/job.err"):
       if os.path.getsize(path+"/job.err")>0:
@@ -794,6 +803,7 @@ class ktf(engine):
   def additional_tag(self,line):
     matchObj = re.match(r'^#KTF\s*(\S+|_)\s*=\s*(.*)\s*$',line)
     if (matchObj):
+      #line=line[4:].replace("=2
       # yes! saving it in direct_tag and go to next line
       (t,v) = (matchObj.group(1), matchObj.group(2))
       if self.DEBUG:
@@ -921,7 +931,7 @@ class ktf(engine):
         print "testing : ",line
         print "tags_names:",tags_names
     
-      tags = line.split(" ")
+      #tags = line.split(" ")
       tags = shlex.split(line)
 
       if not(len(tags)==len(tags_names)):
