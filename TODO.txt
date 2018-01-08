@@ -1,0 +1,31 @@
+
+--kill
+
+fields printed when filtering
+
+do not trucnate field value when --exp is called
+
+--clean
+
+when a kb is done, trace it and ask if you want to submit the last one if kl is called alone
+
+force job.err, job.out
+
+README for bitbucket
+
+fixing bug ERROR2  
+
+
+make a create-template option, copying from example is not natural
+
+allow  __task__=32*__nodes
+
+make __Timer1_start__ and check if a timer is in the template
+
+add --singleton
+
+check the job.output
+
+fix the "   c "  in #KTF
+
+cable kmonitor even for job build

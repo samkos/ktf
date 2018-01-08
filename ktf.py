@@ -39,6 +39,7 @@ class ktf(engine):
     self.DEBUG = 0
     self.WHAT = ""
     self.WHEN = ""
+    self.NB = 0
     self.BUILD = False
     self.MATRIX_FILE_TEMPLATE = ""
     self.FAKE                 = False
@@ -56,6 +57,7 @@ class ktf(engine):
     self.timing_results["procs"] = []
     self.timing_results["cases"] = []
     self.timing_results["runs"] = []
+    self.CASE_LENGTH_MAX = 0
 
     if os.path.exists(self.WORKSPACE_FILE):
       self.load_workspace()
@@ -81,10 +83,11 @@ class ktf(engine):
         print "\n  usage: \n \t python  run_tests.py \
                \n\t\t[ --help ] [ --init ] \
                \n\t\t[ --status ] \
-               \n\t\t[ --launch | --build   [ --what=<filter on case>]   [ --exp-file=[exp_file.ktf] ] \
+               \n\t\t[ --launch | --build   [ --what=<filter on case>]   [ --case-file=[exp_file.ktf] ] \
+               \n\t\t                       [ --nb=<number of expermiment>   ] \
                \n\t\t                       [ --times=number of repetition>  ] \
                \n\t\t                       [ --reservation=<reservation name] ]\
-               \n\t\t[ --exp                [ --what=<filter on test>] [ --exp-file=[exp_file.ktf] ] \
+               \n\t\t[ --exp                [ --what=<filter on test>] [ --case-file=[exp_file.ktf] ] \
                \n\t\t                       [ --today | --now ] ] \
                \n\t\t[ --monitor [ --wide ] [ --when=<filter on date>] [ --what=<filter on test>] ] \
                \n\t\t[ --info ]             [ --info-level=[0|1|2]  ] \
@@ -111,8 +114,9 @@ class ktf(engine):
 
           opts, args = getopt.getopt(args, ["h", "l"], 
                             ["help", "machine=", "test=", "www", \
-                               "debug", "debug-level=", "init", "monitor", "build", "what=", "when=", "today", "now",\
-                               "exp", "reservation=", "status", "exp-file=","times=",
+                             "debug", "debug-level=", "init", "monitor", "build", "nb=", \
+                            "what=", "when=", "today", "now",\
+                             "exp", "reservation=", "status", "case-file=","times=",
                                "fake",  "launch", "wide" ])    
       except getopt.GetoptError, err:
           # print help information and exit:
@@ -139,13 +143,15 @@ class ktf(engine):
           self.log.setLevel(logging.DEBUG)
         elif option in ("--what"):
           self.WHAT = argument
+        elif option in ("--nb"):
+          self.NB = int(argument)
         elif option in ("--when"):
           self.WHEN = argument
         elif option in ("--today"):
           self.WHEN = datetime.datetime.now().strftime("%y%m%d-")
         elif option in ("--now"):
           self.WHEN = datetime.datetime.now().strftime("%y%m%d-%H")
-        elif option in ("--exp-file"):
+        elif option in ("--case-file"):
           self.TEST_FILE = argument
         elif option in ("--wide"):
           self.NB_COLUMNS_MAX = 9
@@ -193,6 +199,7 @@ class ktf(engine):
       elif self.MONITOR:
         self.list_jobs_and_get_time()
       else:
+        self.ALREADY_AKNKOWLEDGE = False
         for nb_experiment in range(self.TIMES):
           self.run()
           if self.TIMES>1:
@@ -335,20 +342,45 @@ class ktf(engine):
   def get_current_jobs_status(self):
 
     status_error = False
+
+    DIRS = self.JOB_DIR
+    IDS = self.JOB_ID
+
+    DIRS_CANDIDATES = find_files('.','job.submit.out')
+
+    if not(len(DIRS_CANDIDATES) == len(IDS)):
+      self.log_info('Oops some status jobs are missing... let me try to reconstruct them...')
+      self.log_debug('%s dirs and %s jobs to scan ' % (len(DIRS),len(IDS)))
+      self.log_debug('%s dirs possibles... vs %s dirs in the box' % (len(DIRS_CANDIDATES),len(DIRS)))
+      for f in DIRS_CANDIDATES:
+        l = open(f,'r').readline()[:-1]
+        job_id  = l.split(" ")[-1]  
+        self.log_debug('j=/%s/ for %s ; l= >>%s<< ' % (job_id,f,l),1)
+        d = os.path.abspath(os.path.dirname(f))
+        if not(d in DIRS.keys()):
+          self.log_debug('adding j=/%s/ for %s ; l= >>%s<< ' % (job_id,d,l))
+          if len(job_id):
+            self.JOB_DIR[job_id] = d
+            self.JOB_ID[d] = job_id
+            self.JOB_STATUS[job_id] = self.JOB_STATUS[d] =  'NOINFO'
+          else:
+            self.JOB_ID[d] = -1
+            self.JOB_STATUS[d] = 'REJECTED'
+
     
-    if self.DEBUG:
-      print len(self.JOB_ID)
     jobs_to_check = list()
-    for j in self.JOB_DIR.keys():
-      if self.DEBUG:
-        print j,self.JOB_DIR[j],self.job_status(j),
-      if self.job_status(j) in ("CANCELLED","COMPLETED"):
-        if self.DEBUG:
-          print 'not asking for ',j
+    for j in DIRS.keys():
+      status = self.job_status(j)
+      self.log_debug('status : /%s/ for job %s from dir >>%s<<' % (status,j,DIRS[j]),1)
+      if status in ("CANCELLED","COMPLETED","FAILED","TIMEOUT",'NODE_FAIL','BOOT_FAIL','SPECIAL_EXIT','REJECTED'):
+        self.log_debug ('--> not updating status',1)
       else:
         jobs_to_check.append(j)
-        
+    if len(jobs_to_check)==0:
+      return
+    
     cmd = ["sacct","-j",",".join(jobs_to_check)]
+    self.log_debug('cmd so get new status : ///%s///' % " ".join(cmd))
     try:
       output = subprocess.check_output(cmd)
     except:
@@ -359,32 +391,40 @@ class ktf(engine):
       output=""
     for l in output.split("\n"):
         try:
-          if self.DEBUG:
-            print l
+          p = re.compile("\s+")
+          l = p.sub(' ',l[:-1])
+          self.log_debug('l=/%s/' % l)
           j=l.split(" ")[0].split(".")[0]
-          status=l.split(" ")[-8]
-          if status in ('PENDING','TIMEOUT','FAILED','RUNNING','COMPLETED','CANCELLED','CANCELLED+','COMPLETED'):
-            if self.DEBUG:
-              print status,j
-            if status[-1]=='+':
-              status  = status[:-1]
-            self.JOB_STATUS[j] = self.JOB_STATUS[self.JOB_DIR[j]] = status
+          fields = l.split(" ")
+          if len(fields)>2:
+            status=fields[-2]
+            if status in ('PENDING','RUNNING','SUSPENDED','COMPLETED','CANCELLED','CANCELLED+','FAILED','TIMEOUT',
+                          'NODE_FAIL','PREEMPTED','BOOT_FAIL','COMPLETING','CONFIGURING','RESIZING','SPECIAL_EXIT'):
+              if self.DEBUG:
+                print status,j
+              if status[-1]=='+':
+                status  = status[:-1]
+              self.JOB_STATUS[j] = self.JOB_STATUS[DIRS[j]] = status
         except:
           if self.DEBUG:
-            self.dump_exception('[get_current_job_status] parse job_status with j=%s' % j +"\n job status : "+l)
+            self.dump_exception('[get_current_job_status] parse job_status \n\t with j=/%s/ \n\t with job_status=/%s/ ' % (j,l))
           else:
             status_error = True
           pass
     self.save_workspace()
 
     if status_error:
-      self.log_info('!WARNING! Error encountered scanning job status, run with --debug to know more')
+      self.log_info('[get_current_job_status] !WARNING! Error encountered scanning job status, run with --debug to know more',1)
       
   #########################################################################
   # get current job status
   #########################################################################
   def job_status(self,id_or_file):
 
+    self.log_debug("[job_status] job_status on %s " % id_or_file,1)
+    if id_or_file == -1:
+      return 'REJECTED'
+    
     dirname="xxx"
     if os.path.isfile(id_or_file):
       dirname = os.path.abspath(os.path.dirname(id_or_file))
@@ -393,10 +433,11 @@ class ktf(engine):
 
     for key in [id_or_file,dirname]:
       if key in self.JOB_STATUS.keys():
-        return self.JOB_STATUS[key]
-    if self.DEBUG:
-      print "UNKNOWN for ",id_or_file,dirname
-    return "UNKNOWN"
+        status = self.JOB_STATUS[key]
+        self.log_debug("[job_status] job_status on %s --> %s" % (id_or_file,status),1)
+        return status
+    self.log_debug("[job_status] job_status on %s --> UNKNOWN" % id_or_file)
+    return "NOINFO"
 
    
 
@@ -407,21 +448,23 @@ class ktf(engine):
 
   def scan_jobs_and_get_time(self,path=".",level=0,timing=False,
                              dir_already_printed={}):
-    if level==0 and self.DEBUG:
-      print "\n\tBenchmarks Availables: "
 
-    
-    if self.DEBUG>3:
-      print "\n[list_jobs_and_get_time] scanning ",path," for timings=",timing
+    self.log_debug("[list_jobs_and_get_time] Benchmarks Availables: ",2)
+    self.log_debug("[list_jobs_and_get_time] scanning %s for timings=%s" % (path,timing),2)
+
 
     if not(os.path.exists(path)):
       return
     
     if not(os.path.isdir(path)):
       return
-      
+    
+    if self.WHEN and not(path=='.'):
+      if path.find(self.WHEN)<0:
+        self.log_debug('rejecting path >>%s<< because of filter applied' % path,2)
+        return
+    
     dirs = sorted(os.listdir(path))
-
 
     if len(dirs):
       #if level == SCANNING_FROM :
@@ -434,13 +477,17 @@ class ktf(engine):
             if self.DEBUG:
               print "[list_jobs_and_get_time] candidate : %s " % (path+"/"+"job.submit.out")
             # formatting the dirname
-            p = re.match(r"(.*tests_.*)/.*",path)
+            p = re.match(r"(.*tests_.*_1.....-.._.._..)/.*",path)
             if p:
               dir_match = p.group(1)
+              self.log_debug('dir_match:>>%s<<',dir_match)
   #           else:
   #             dir_match = "??? (%s)" % path
 
             path_new = path + "/" + d
+
+            if self.WHEN and path_new.find(self.WHEN)<0:
+                continue
 
             timing_result = self.get_timing(path)
             
@@ -463,7 +510,7 @@ class ktf(engine):
               if p:
                 proc_match = p.group(1)
               else:
-                proc_match = "???"
+                proc_match = "0"
             k = "%s.%s.%s" % (dir_match,proc_match, case_match)
 
             if not(k in self.timing_results.keys()):
@@ -474,7 +521,8 @@ class ktf(engine):
               self.timing_results["procs"].append(proc_match)
             if not(case_match in self.timing_results["cases"]):
               self.timing_results["cases"].append(case_match)
-    
+              self.CASE_LENGTH_MAX = max(self.CASE_LENGTH_MAX,len(case_match))
+                                         
             self.timing_results[k]=timing_result
             if self.DEBUG:
               print "\t\t%10s s \t %5s %40s " % ( timing_result, proc_match, case_match)
@@ -487,6 +535,12 @@ class ktf(engine):
           if not(d in ["R",".git","src"]):
             path_new = path + "/" + d
             if os.path.isdir(path_new):
+              if self.WHEN:
+                if path_new.find(self.WHEN)<0:
+                  self.log_debug('rejecting path >>%s<< because of filter applied' % path_new,2)
+                  next
+                else:
+                  self.log_debug('accepting path >>%s<< because of filter applied' % path_new,1)
               self.scan_jobs_and_get_time(path_new,level+1,timing,dir_already_printed)
 
 
@@ -498,10 +552,10 @@ class ktf(engine):
   def get_ktf_status(self,path=".",level=0,timing=False,
                              dir_already_printed={}):
 
-    #self.get_current_jobs_status()
+    self.get_current_jobs_status()
     self.scan_jobs_and_get_time(path,level,timing,dir_already_printed)
 
-    print '\n%s experimemnts availables : ' % len(self.timing_results["runs"])
+    print '\n%s experiments availables : ' % len(self.timing_results["runs"])
     chunks = splitList(self.timing_results["runs"],5)
     for runs in chunks:
       for run in runs:
@@ -527,38 +581,50 @@ class ktf(engine):
     self.get_current_jobs_status()
 
     self.scan_jobs_and_get_time(path,level,timing,dir_already_printed)
-
+    
     if os.path.exists('R'):
       shutil.rmtree('R')
     os.mkdir('R')
 
     nb_tests = 0
     total_time = {}
+    blank = ""
     self.timing_results["procs"].sort(key=int)
     #print self.timing_results["procs"]
 
+    
 
     chunks = splitList(self.timing_results["runs"],self.NB_COLUMNS_MAX,only=self.WHEN)
 
-    print
-    print '-' * 125
+    format_run =  ("%%%ss" % self.CASE_LENGTH_MAX )
+    line_sep  = '-' * (4+self.NB_COLUMNS_MAX * 20 +self.CASE_LENGTH_MAX*2)
 
-    
+    print
+    print line_sep
+
     nb_column = 0
     for runs in chunks:
+
+      blank = " "* 19 *( self.NB_COLUMNS_MAX - len(runs))
 
       self.log_debug('runs=[%s], nb_column=%s' % (",".join(runs),nb_column),2)
       nb_column_start = nb_column
       nb_line = 0
-      print "%45s" % "Runs",
-    
+      
+      header = format_run % "Runs"
 
       for run in runs:
-        print "%18s" % run[-15:],
-      print
-    
+        header = header + " %18s" % run[-15:]
+      header = header + '%s  # tests / Runs' % blank
 
-      for case in splitList(self.timing_results["cases"],1000,only=self.WHAT)[0]:
+      cases = splitList(self.timing_results["cases"],1000,only=self.WHAT)
+
+      if len(cases)==0:
+        continue
+
+      print header
+      
+      for case in cases[0]:
         nb_line += 1
         for proc in self.timing_results["procs"]:
           k0 = "%s.%s" % (proc, case)
@@ -569,7 +635,7 @@ class ktf(engine):
               nb_runs += 1
           if nb_runs:
             nb_column = nb_column_start
-            print "%45s" % case,
+            s = format_run  % case
             for run in runs:
               nb_column += 1
               k = "%s.%s.%s" % (run,proc,case)
@@ -591,7 +657,7 @@ class ktf(engine):
                   self.log_debug( '\nZZZZZZZZZZZ symbolic link failed for ' + "ln -s ."+path + " R/%s" % shortcut)
                   status_error_links = True
                 try:
-                  print "%15s %s" % (t,shortcut),
+                  s = s + " %15s %s" % (t,shortcut)
                 except:
                   print 'range error ',nb_line-1,nb_column-1
                   sys.exit(1)
@@ -605,20 +671,21 @@ class ktf(engine):
                   except:
                     pass
               else:
-                print "%18s" % "-",
-            blank = ""
-            for r in range(len(runs),self.NB_COLUMNS_MAX):
-              blank = blank + " "*19
-            print "%s%3s tests %s" % (blank,nb_runs,case)
-      print "%45s" % "total time",
+                s = s + "%12s       " % "-"
+            s = s +"%s%3s / %s" % (blank,nb_runs,case)
+            print s
+      s = format_run  % "total time"
       for run in runs:
-        print "%15s   " % total_time[run],
-      print "%s%3s" % (blank,nb_tests),'tests in total'
-      print '-' * 125
+        if not(run in total_time.keys()):
+          total_time[run]=0
+        s = s + " %18s" % total_time[run]
+      s = s +  "%s%3s" % (blank,nb_tests) + ' tests in total'
+      print s
+      print line_sep
       self.log_debug('at the end of the runs chunk nb_column=%s' % (nb_column),2)
 
     if status_error_links:
-      self.log_info('!WARNING! Error encountered setting symbolic links in R/ directory, run with --debug to know more')
+      self.log_info('!WARNING! Error encountered setting symbolic links in R/ directory, run with --debug to know more',1)
 
   #########################################################################
   # calculation of ellapsed time based on values dumped in job.out
@@ -634,11 +701,12 @@ class ktf(engine):
 
     if not(os.path.exists(path+"/job.out")):
       #sk print 'NotYet for %s' % path+'/job.out'
-      return "NotYet/"+status# [:2]
+      return "None/"+status# [:2]
 
-    if os.path.getsize(path+"/job.err")>0:
-       status="!"+status
-       #return "Error/"+status# [:2]
+    if os.path.exists(path+"/job.err"):
+      if os.path.getsize(path+"/job.err")>0:
+        status=status+"!"
+        #return "Error/"+status# [:2]
     
     fic = open(path+"/job.out")
     t = "__NEWLINE__".join(fic.readlines())
@@ -650,9 +718,9 @@ class ktf(engine):
 
     try:
       start_timing = t.split("======== start ==============")
-      #print len(start_timing),start_timing
+      self.log_debug("start_timing %s" % start_timing,3)
       if len(start_timing)<2:
-        return "NOST/"+status# [:2]
+        return "NOST/"+status
       from_date = start_timing[1].replace("__NEWLINE__","").replace("\n","").split(" ")
       (from_month,from_day,from_time) = (from_date[1],from_date[2],from_date[3])
       (from_hour,from_minute,from_second) = from_time.split(":")
@@ -661,18 +729,25 @@ class ktf(engine):
       if len(end_timing)<2:
         if status=="RUNNING":
           now = datetime.datetime.now()
-          
-          ellapsed_time = ((int(now.day)*24.+int(now.hour))*60+int(now.minute))*60+int(now.second) \
+        else:
+          now=datetime.datetime.fromtimestamp(os.path.getmtime(path+"/job.out"))
+        ellapsed_time = ((int(now.day)*24.+int(now.hour))*60+int(now.minute))*60+int(now.second) \
                         - (((int(from_day)*24.+int(from_hour))*60+int(from_minute))*60+int(from_second))
-          return "%d/RU" % ellapsed_time 
-        return "NOEND/"+status# [:2] 
+        return "!%d/%s" % (ellapsed_time,status)
+      
       from_date = to_date = "None"
+
       if len(start_timing)>1 and len(end_timing)>1:
-        to_date = end_timing[1].replace("__NEWLINE__","").replace("\n","").split(" ")
-        (to_month,to_day,to_time) = (to_date[1],to_date[2],to_date[3])
+        try:
+          to_date = end_timing[1].replace("__NEWLINE__","").replace("\n","").split(" ")
+          (to_month,to_day,to_time) = (to_date[1],to_date[2],to_date[3])
+        except:
+          self.dump_exception("[get_timing] Exception type 2 on time read: >>%s<< " % to_date)
+          ellapsed_time='ERROR_2'
+
         if self.DEBUG:
-          print "[get_time] from_time=!%s! start_timing=!%s! from_date" % (from_time,start_timing[1]), from_date
-          print "[get_time]   to_time=!%s!   end_timing=!%s! to_date" % (to_time,end_timing[1]) , to_date
+           print "[get_time] from_time=!%s! start_timing=!%s! from_date" % (from_time,start_timing[1]), from_date
+           print "[get_time]   to_time=!%s!   end_timing=!%s! to_date" % (to_time,end_timing[1]) , to_date
       
         (to_hour,to_minute,to_second) = to_time.split(":")
         ellapsed_time = ((int(to_day)*24.+int(to_hour))*60+int(to_minute))*60+int(to_second) \
@@ -686,10 +761,8 @@ class ktf(engine):
             except_print()
         ellapsed_time = "NOGOOD"
     except:
-      if self.DEBUG:
-        print "[get_timing] Exception type 2"
-        except_print()
-      ellapsed_time=-2
+      self.dump_exception("[get_timing] Exception type 2  ")
+      ellapsed_time='ERROR_2'
     if isinstance(ellapsed_time,basestring):
       return ellapsed_time
     return self.my_timing(path,ellapsed_time,status)
@@ -730,6 +803,7 @@ class ktf(engine):
   def additional_tag(self,line):
     matchObj = re.match(r'^#KTF\s*(\S+|_)\s*=\s*(.*)\s*$',line)
     if (matchObj):
+      #line=line[4:].replace("=2
       # yes! saving it in direct_tag and go to next line
       (t,v) = (matchObj.group(1), matchObj.group(2))
       if self.DEBUG:
@@ -748,12 +822,12 @@ class ktf(engine):
     now = time.strftime('%y%m%d-%H_%M_%S',time.localtime())
     
     if not(os.path.exists(test_matrix_filename)):
-      print "\n\t ERROR : missing test matrix file %s for machine %s" % (test_matrix_filename,self.MACHINE)
+      print "\n\t ERROR : missing test matrix file >>%s<< for machine %s " % (test_matrix_filename,self.MACHINE)
       print "\n\t         ktf --init  can be called to create the templates"
-      print "\t\tor\n\t         ktf --exp-file=<exp ktf file> can be called to read the cases from another file"
+      print "\t\tor\n\t         ktf --case-file=<exp ktf file> can be called to read the cases from another file"
       if self.EXP:
         tags_ok = False
-        mandatory_fields = ["Test", "Experiment"]
+        mandatory_fields = ["Case", "Experiment"]
         
         lines = ['']
       else:
@@ -763,15 +837,21 @@ class ktf(engine):
       print
     
       tags_ok = False
-      mandatory_fields = ["Test", "Experiment"]
+      mandatory_fields = ["Case", "Experiment"]
 
       lines = open(test_matrix_filename).readlines()
 
     # warning message is sent to the user if filter is applied on the jobs to run
     
-    if len(self.WHAT):
-      self.log_info("the filter %s will be applied... Only following lines will be taken into account :",self.WHAT)
+    if len(self.WHAT) or self.NB:
+      if not(self.ALREADY_AKNKOWLEDGE) and not(self.WHAT==' '):
+        self.log_info("the filter %s will be applied... Only following lines will be taken into account : " % (self.WHAT))
+      if self.NB :
+        self.log_info("only case %s will be taken " % self.NB)
+        
       self.direct_tag = {}
+      nb_case = 1
+      
       for line in lines:
         line = self.clean_line(line)
         if self.additional_tag(line):
@@ -786,19 +866,29 @@ class ktf(engine):
             print line
           matchObj = re.match("^.*"+self.WHAT+".*$",line)
           # prints all the tests that will be selected
-          if (matchObj):
-            print "\t",
-            for k in line.split(" "):
-              print "%20s " % k[:20],
-            print
+          if (matchObj) and not(self.ALREADY_AKNKOWLEDGE):
+            if nb_case==1:
+              for k in self.direct_tag.keys():
+                print "%6s" % k,
+              print
+
+            if not(self.NB) or self.NB==nb_case:
+              print "%3d: " % (nb_case),
+              for k in line.split(" "):
+                print "%6s " % k[:20],
+              print
+            nb_case = nb_case + 1
+
       # if --exp exiting here
       if self.EXP:
         sys.exit(0)
       # askine to the user if he is ok or not
-      input_var = raw_input("Is this correct ? (yes/no) ")
-      if not(input_var == "yes"):
+      if not(self.ALREADY_AKNKOWLEDGE):
+        input_var = raw_input("Is this correct ? (yes/no) ")
+        if not(input_var == "yes"):
           print "ABORTING: No clear confirmation... giving up!"
           sys.exit(1)
+        self.ALREADY_AKNKOWLEDGE = True
           
       tags_ok = False
           
@@ -806,6 +896,7 @@ class ktf(engine):
     # it needs to be evaluated on the fly to apply right tag value at a given job
     self.direct_tag = {}
 
+    nb_case = 1
     # parsing of the input file starts...
     for line in lines:
       line = self.clean_line(line)
@@ -829,14 +920,18 @@ class ktf(engine):
         line2scan = line2scan+" "+self.direct_tag[k]
       # if job case are filtered, apply it, jumping to next line if filter not match
       matchObj = re.match("^.*"+self.WHAT+".*$",line2scan)
+      nb_case = nb_case+1
       if not(matchObj):
         continue
 
+      if self.NB and not(self.NB==nb_case-1):
+        continue
+      
       if self.DEBUG:
         print "testing : ",line
         print "tags_names:",tags_names
     
-      tags = line.split(" ")
+      #tags = line.split(" ")
       tags = shlex.split(line)
 
       if not(len(tags)==len(tags_names)):
@@ -880,7 +975,7 @@ class ktf(engine):
       # all tags are valued at this time
       # creating the job directory indexed by time
 
-      dest_directory = "tests_%s_%s/%s" % (self.MACHINE,now,tag["Test"])
+      dest_directory = "tests_%s_%s/%s/%s" % (self.MACHINE,now,tag['Experiment'],tag["Case"])
       cmd = ""
 
       print "\tcreating test directory %s for %s: " % (dest_directory,self.MACHINE)
@@ -893,18 +988,21 @@ class ktf(engine):
 
       if self.RESERVATION:
         submit_command = submit_command + ' --reservation=%s' % self.RESERVATION
-        
-      cmd = cmd + \
-            "mkdir -p %s; cd %s ; tar fc - -C ../../tests/%s . | tar xvf - > /dev/null\n " % \
-            ( dest_directory, dest_directory,tag["Experiment"]) 
-      
 
-      # copying contents of the tests/common directory into the directory where the job will take place
-      if os.path.exists('tests/common'):
-        cmd = cmd + \
-            "tar fc - -C ../../tests/common . | tar xvf - > /dev/null "
+      root_directory = os.getcwd()
+      cmd = cmd + \
+            "mkdir -p %s\n cd %s \n tar fc - -C %s/tests/%s . | tar xvf - > /dev/null " % \
+            ( dest_directory, dest_directory,root_directory,tag["Experiment"]) 
       
-      self.wrapped_system(cmd,comment="copying in %s" % dest_directory)
+      # copying contents of the tests/common and tests/<Experiment>/common directory into the directory where the job will take place
+      for d in ['tests/common','tests/%s/../common' % tag["Experiment"]]:
+        common_dir = '%s/%s' % (root_directory,d)
+        if os.path.exists(common_dir):
+          cmd = cmd + \
+                "\ntar fc - -C %s . | tar xvf - > /dev/null  " % (common_dir)
+
+      self.wrapped_system(cmd,comment="copying %s in %s" % (common_dir,dest_directory))
+          
 
       tag["STARTING_DIR"] = "."
       job_file=self.substitute(dest_directory,tag)
