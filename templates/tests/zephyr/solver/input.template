@@ -1,0 +1,57 @@
+1           ! nb_tasks
+./output    ! fichier de sortie
+28          ! nexample
+0.e00       ! start_0
+0.0009      ! t_all
+0.0003125   ! tau 
+0.0003125   ! t_print 
+0           ! is_print       
+2           ! is_conv        >0: cv_global /5 : sauve fichier
+4           ! Schema Temporel d'integration
+2           ! 0--> 1     1--> current  2 -> richardson
+__NX__      ! lm
+__NY__      ! nm
+.1          ! nu 
+5           ! ncheck           1:VF2  2:DF2 3:VF4 5:DF4 6:DF4e
+2           ! ncheck_precond
+__SOLVER__  ! ntype_solver  1..9:BiCGSTAB(l),  10:GMRES,     11:GMRESR,      12:GMRESR+norec,
+            !                 13:MG,           14:Orthodir,  15:Orthomin,    16:lisse
+__PRECOND__ ! ntype_precond 1..9: BiCGSTAB(l), 10:GMRES,     13:MG,          16:lisse
+100         ! npcg
+300         ! nprecond
+3           ! nrecvddm
+1.E-18      ! epsv
+1.E-10      ! epsva
+1.E-18      ! epsvc 
+1.E-10      ! epsvac
+3           ! ninterne
+4           ! ndirection
+2           ! ns_solver  1-> compress art  2-> couplee  3-> projection 4-> lagrangien augm
+1.          ! rho_ca/mupression     constante de compressibilite artificielle ou lag augm / mupression
+1.          ! rlag                  constante r du lagrangien augmente
+5           ! nbmax_ca   Nombre max d'iterations de CA  
+50          ! nbp_ca     impression divergence tous les nbp_ca pas
+20          ! nbmg
+1.E-8       ! epsmg
+1.E-8       ! epsmga
+3           ! nb_prelis
+2           ! nb_post_lis
+1           ! nb_cycle
+1.0         ! sor_theta
+0           ! is_decale  0->non  1-> oui
+0           ! is_restart_save
+./save ! fichier de sauvegarde globale
+
+! solution testees
+!         21     Cavite entrainee
+!         22     Solution Test Poisson    
+!         23     ecoulement de Poiseuil
+!         24     ecoulement de Kovasznay
+!         25     Cavite entrainee regularisee
+!         26     Tourbillon bidimensionnel de Green-Taylor
+!         27     Tourbillon bidimensionnel periodique
+!         28     Bipole     traversant selon la diagonale
+!         29     Gaussienne traversant selon la diagonale
+
+
+
