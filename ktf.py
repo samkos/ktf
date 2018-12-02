@@ -62,7 +62,7 @@ class ktf(engine):
     if os.path.exists(self.WORKSPACE_FILE):
       self.load_workspace()
       #print self.timing_results["runs"]
-    self.shortcuts='abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789-_=+[]%!@'
+    self.shortcuts='abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789-_=+[]%!@{}~()#%$&^AAAAAAAAAAAAAAAAAAAAAA'
 
     self.PYSAM_VERSION_REQUIRED = 0.8
     engine.__init__(self,"ktf","0.5")
@@ -641,6 +641,7 @@ class ktf(engine):
               k = "%s.%s.%s" % (run,proc,case)
               if k in self.timing_results.keys():
                 t = self.timing_results[k]
+                #print case,nb_line-1,(self.shortcuts[nb_column-1],self.shortcuts[nb_line-1])
                 shortcut = "%s%s" % (self.shortcuts[nb_column-1],self.shortcuts[nb_line-1])
                 path = run+"/"+case
                 if not(os.path.exists(path)):
