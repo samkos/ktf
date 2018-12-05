@@ -1,0 +1,8 @@
+# test matrix for shaheen II
+
+Case      Experiment     NX     NY   NB_CORES        ELLAPSED_TIME          
+
+16  	  zephyr/strong  255   255       16  		0:05:00
+32  	  zephyr/strong  255   255       32  		0:05:00
+128 	  zephyr/strong  255   255      128 		0:05:00      
+

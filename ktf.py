@@ -62,10 +62,10 @@ class ktf(engine):
     if os.path.exists(self.WORKSPACE_FILE):
       self.load_workspace()
       #print self.timing_results["runs"]
-    self.shortcuts='abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789-_=+[]%!@{}~()#%$&^AAAAAAAAAAAAAAAAAAAAAA'
+    self.shortcuts='abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789'
 
     self.PYSAM_VERSION_REQUIRED = 0.8
-    engine.__init__(self,"ktf","0.5")
+    engine.__init__(self,"ktf","0.6")
 
       
   #########################################################################
@@ -642,7 +642,18 @@ class ktf(engine):
               if k in self.timing_results.keys():
                 t = self.timing_results[k]
                 #print case,nb_line-1,(self.shortcuts[nb_column-1],self.shortcuts[nb_line-1])
-                shortcut = "%s%s" % (self.shortcuts[nb_column-1],self.shortcuts[nb_line-1])
+                nb_possible_shortcuts = len(self.shortcuts)
+                if nb_column<=nb_possible_shortcuts:
+                  s1 = self.shortcuts[nb_column-1]
+                else:
+                  s1 = self.shortcuts[(nb_column-1)/ nb_possible_shortcuts -1] + \
+                       self.shortcuts[(nb_column-1) % nb_possible_shortcuts]
+                if nb_line<=nb_possible_shortcuts:
+                  s2 = self.shortcuts[nb_line-1]
+                else:
+                  s2 = self.shortcuts[(nb_line-1) / nb_possible_shortcuts - 1] +\
+                       self.shortcuts[(nb_line-1) % nb_possible_shortcuts]
+                shortcut = "%s,%s" % (s1,s2)
                 path = run+"/"+case
                 if not(os.path.exists(path)):
                   path = path + " "
@@ -658,7 +669,7 @@ class ktf(engine):
                   self.log_debug( '\nZZZZZZZZZZZ symbolic link failed for ' + "ln -s ."+path + " R/%s" % shortcut)
                   status_error_links = True
                 try:
-                  s = s + " %15s %s" % (t,shortcut)
+                  s = s + " %13s %4s" % (t,shortcut)
                 except:
                   print 'range error ',nb_line-1,nb_column-1
                   sys.exit(1)
