@@ -605,7 +605,7 @@ class ktf(engine):
     nb_column = 0
     for runs in chunks:
 
-      blank = " "* 19 *( self.NB_COLUMNS_MAX - len(runs))
+      blank = " "* 20 *( self.NB_COLUMNS_MAX - len(runs))
 
       self.log_debug('runs=[%s], nb_column=%s' % (",".join(runs),nb_column),2)
       nb_column_start = nb_column
@@ -718,6 +718,8 @@ class ktf(engine):
     if os.path.exists(path+"/job.err"):
       if os.path.getsize(path+"/job.err")>0:
         status=status+"!"
+      else:
+        status=status+" "
         #return "Error/"+status# [:2]
     
     fic = open(path+"/job.out")
