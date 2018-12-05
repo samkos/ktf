@@ -614,7 +614,7 @@ class ktf(engine):
       header = format_run % "Runs"
 
       for run in runs:
-        header = header + " %18s" % run[-15:]
+        header = header + " %19s" % run[-15:]
       header = header + '%s  # tests / Runs' % blank
 
       cases = splitList(self.timing_results["cases"],1000,only=self.WHAT)
@@ -690,7 +690,7 @@ class ktf(engine):
       for run in runs:
         if not(run in total_time.keys()):
           total_time[run]=0
-        s = s + " %18s" % total_time[run]
+        s = s + " %18s " % total_time[run]
       s = s +  "%s%3s" % (blank,nb_tests) + ' tests in total'
       print s
       print line_sep
