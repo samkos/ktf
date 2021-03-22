@@ -14,7 +14,7 @@ __NY__      ! nm
 .1          ! nu 
 5           ! ncheck           1:VF2  2:DF2 3:VF4 5:DF4 6:DF4e
 2           ! ncheck_precond
-13          ! ntype_solver  1..9:BiCGSTAB(l),  10:GMRES,     11:GMRESR,      12:GMRESR+norec,
+1          ! ntype_solver  1..9:BiCGSTAB(l),  10:GMRES,     11:GMRESR,      12:GMRESR+norec,
             !                 13:MG,           14:Orthodir,  15:Orthomin,    16:lisse
 0           ! ntype_precond 1..9: BiCGSTAB(l), 10:GMRES,     13:MG,          16:lisse
 100         ! npcg

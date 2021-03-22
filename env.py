@@ -75,9 +75,9 @@ def get_machine():
         DEFAULT_QUEUE = "workq"
         SUBMIT_COMMAND = 'sbatch'
         EXCLUSIVE = True
-    elif (machine[:2] == "db"):
+    elif (machine[:2] == "db") or (machine[:2] == "dm") or (machine[:5]=="login") or (machine[:3]=="dlm") or (machine[:4]=="dgpu") or (machine[:2]=="cn"):
         machine = "ibex"
-        tmp_directory = "/scratch/dragon/intel/"
+        tmp_directory = "/ibex/scratch/"
         MAIL_COMMAND = """mail -s "%s" %s < %s """
         DEFAULT_QUEUE = "batch"
         SUBMIT_COMMAND = 'sbatch'
