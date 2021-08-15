@@ -66,7 +66,7 @@ class ktf(engine):
         self.shortcuts = 'abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789'
 
         self.PYSAM_VERSION_REQUIRED = 0.8
-        engine.__init__(self, "ktf", "0.6")
+        engine.__init__(self, "ktf", "0.7")
 
     #########################################################################
     # usage ...
@@ -478,7 +478,7 @@ class ktf(engine):
                             print "[list_jobs_and_get_time] candidate : %s " % (
                                 path+"/"+"job.submit.out")
                         # formatting the dirname
-                        p = re.match(r"(.*tests_.*_1.....-.._.._..)/.*", path)
+                        p = re.match(r"(.*tests_.*_......-.._.._..)/.*", path)
                         if p:
                             dir_match = p.group(1)
                             self.log_debug('dir_match:>>%s<<', dir_match)
@@ -743,7 +743,7 @@ class ktf(engine):
             start_timing = t.split("======== start ==============")
             self.log_debug("start_timing %s" % start_timing, 3)
             if len(start_timing) < 2:
-                return "NOST/"+status
+                return self.my_timing(path,"NOST",status)
             from_date = start_timing[1].replace(
                 "__NEWLINE__", "").replace("\n", "").split(" ")
             (from_month, from_day, from_time) = (
@@ -760,7 +760,7 @@ class ktf(engine):
                 ellapsed_time = ((int(now.day)*24.+int(now.hour))*60+int(now.minute))*60+int(now.second) \
                     - (((int(from_day)*24.+int(from_hour)) *
                         60+int(from_minute))*60+int(from_second))
-                return "!%d/%s" % (ellapsed_time, status)
+                return self.my_timing(path,"!%d" % ellapsed_time, status)
 
             from_date = to_date = "None"
 
@@ -797,8 +797,8 @@ class ktf(engine):
         except:
             self.dump_exception("[get_timing] Exception type 2  ")
             ellapsed_time = 'ERROR_2'
-        if isinstance(ellapsed_time, basestring):
-            return ellapsed_time
+        # if isinstance(ellapsed_time, basestring):
+        #     return ellapsed_time
         return self.my_timing(path, ellapsed_time, status)
 
     #########################################################################
