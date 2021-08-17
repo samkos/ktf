@@ -104,7 +104,7 @@ class ktf(engine):
         self.parser.add_argument("-w", "--wide", action="store_true",
                                  help=self.activate_option('wide','format results for a wide screen'))
 
-        self.parser.add_argument("-f", "--case-file", type=str, default= "./%s_cases.ktf" % self.MACHINE,
+        self.parser.add_argument("-c", "--case-file", type=str, default= "./%s_cases.ktf" % self.MACHINE,
                                  help=self.activate_option('case-file','name of the case file'))
         self.parser.add_argument("-w", "--what", type=str, default="",
                                  help=self.activate_option('what','filter based on the experiment name'))
@@ -152,6 +152,7 @@ class ktf(engine):
         engine.start(self)
         self.set_variable_from_parsing()
         self.run()
+        self.ktf_start()
 
     #########################################################################
     # set variable from parsing command line
@@ -180,6 +181,11 @@ class ktf(engine):
         if self.args.wide:
                 self.NB_COLUMNS_MAX = 9
 
+    #########################################################################
+    # main work
+    #########################################################################
+    
+    def ktf_start(self):
         if self.args.init:
             self.create_ktf_init()
             sys.exit(0)
