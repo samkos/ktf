@@ -226,7 +226,7 @@ class engine(object):
             if not(self.args.rollback or self.args.rollback_list):
                 self.check_if_directory_was_moved()
         except:
-            self.log_info('ZZZ self.ags.rollback is not defined')
+            self.log_info('ZZZ self.args.rollback is not defined',1)
 
         # automated lock
         self.lock_taken = {'fake_file':-1}

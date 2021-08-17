@@ -20,7 +20,7 @@ import getpass
 import datetime
 import string
 import shutil
-
+import pprint
 
 from engine import engine
 from env import *
@@ -127,6 +127,9 @@ class ktf(engine):
         self.parser.add_argument("-n", "--nb", type=int, default=0,
                                  help=self.activate_option('nb','select experiment # nb only'))
 
+        self.parser.add_argument("--fake", action="store_true",
+                                 help=self.activate_option('fake','do not run any call'))
+
         self.parser.add_argument("-np", "--no-pending", action="store_true",
                              help=argparse.SUPPRESS)
         self.parser.add_argument("--create-template", action="store_true",
@@ -166,7 +169,8 @@ class ktf(engine):
         self.LAUNCH = self.args.launch
         self.BUILD = self.LAUNCH or self.args.build
         self.STATUS = self.args.status
-        
+        self.FAKE = self.args.fake
+
         if self.args.today:
             self.WHEN = datetime.datetime.now().strftime("%y%m%d-")
         if self.args.now:
@@ -236,30 +240,6 @@ class ktf(engine):
             job_id = self.JOB_ID[job_dir]
             self.JOB_DIR[job_id] = job_dir
 
-    #########################################################################
-    # os.system wrapped to enable Trace if needed
-    #########################################################################
-
-    def wrapped_system(self, cmd, comment="No comment", fake=False):
-
-        self.log_debug("\tcurrently executing /%s/ :\n\t\t%s" % (comment, cmd))
-
-        if not(fake) and not(self.FAKE):
-            # os.system(cmd)
-            # subprocess.call(cmd,shell=True,stderr=subprocess.STDOUT)
-            proc = subprocess.Popen(
-                cmd, shell=True, bufsize=1, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            output = ""
-            while (True):
-                # Read line from stdout, break if EOF reached, append line to output
-                line = proc.stdout.readline()
-                #line = line.decode()
-                if (line == ""):
-                    break
-                output += line
-            if len(output):
-                print(output)
-            sys.stdout.flush()
 
     #########################################################################
     # send a message to the user
@@ -957,7 +937,7 @@ class ktf(engine):
                 continue
 
             self.log_debug("[run] line " + line,2,trace="PARAMS")
-            self.log_debug("[run] tags_names" + tags_names,2,trace="PARAMS")
+            self.log_debug("[run] tags_names" + pprint.pformat(tags_names),2,trace="PARAMS")
 
             #tags = line.split(" ")
             tags = shlex.split(line)
@@ -973,19 +953,19 @@ class ktf(engine):
 
             ts = copy.deepcopy(tags_names)
             tag = {}
-            self.log_debug("[run] ts " + ts,3,trace="PARAMS")
-            self.log_debug("[run] tag" + tag,3,trace="PARAMS")
+            self.log_debug("[run] ts " + pprint.pformat(ts),3,trace="PARAMS")
+            self.log_debug("[run] tag" + pprint.pformat(tag),3,trace="PARAMS")
 
             while(len(ts)):
                 t = ts.pop(0)
                 tag["%s" % t] = tags.pop(0)
-                self.log_debug("[run] tag %s : !%s! " % (t, tag["%s" % t])), 3,trace="PARAMS")
-            self.log_debug("[run] tag" + tag,3,trace="PARAMS")
+                self.log_debug("[run] tag %s : !%s! " % (t, tag["%s" % t]), 3,trace="PARAMS")
+            self.log_debug("[run] tag" + pprint.pformat(tag),3,trace="PARAMS")
 
             # adding the tags enforced by a #KTF directive
             tag.update(self.direct_tag)
-            self.log_debug("[run] direct_tag" + self.direct_tag,3,trace="PARAMS")
-            self.log_debug("[run] tag after update" + tag,3,trace="PARAMS")
+            self.log_debug("[run] direct_tag" + pprint.pformat(self.direct_tag),3,trace="PARAMS")
+            self.log_debug("[run] tag after update" + pprint.pformat(tag),3,trace="PARAMS")
 
             # checking if mandatory tags are there
             for c in mandatory_fields:
@@ -1026,7 +1006,7 @@ class ktf(engine):
                         "\ntar fc - -C %s . | tar xvf - > /dev/null  " % (
                             common_dir)
 
-            self.wrapped_system(cmd, comment="copying %s in %s" %
+            self.system(cmd, comment="copying %s in %s" %
                                 (common_dir, dest_directory))
 
             tag["STARTING_DIR"] = "."
@@ -1038,7 +1018,7 @@ class ktf(engine):
                      os.path.basename(job_file))
                 if self.LAUNCH:
                     print("\tsubmitting job %s " % job_file)
-                    self.wrapped_system(
+                    self.system(
                         cmd, comment="submitting job %s" % job_file)
                     output_file = "%s/job.submit.out" % os.path.dirname(
                         job_file)
@@ -1099,9 +1079,9 @@ class ktf(engine):
                                    (filename_to, dirname))
 
                     if not(os.path.exists(dirname)):
-                        self.wrapped_system(
+                        self.system(
                             "mkdir -p %s" % dirname, comment="creating dir %s" % dirname)
-                    self.wrapped_system("cp %s %s" % (
+                    self.system("cp %s %s" % (
                         filename_from, filename_to), comment="creating file %s" % filename_to)
                     self.log_info('creating file %s' % (filename_to))
 
