@@ -36,11 +36,12 @@ NODES_FAILED = False
 MAIL_COMMAND = False
 SCHED_TYPE = "slurm"
 SUBMIT_COMMAND = 'sbatch'
+SACCT_COMMAND = 'sacct'
 EXCLUSIVE = False
 
 def get_machine():
     global CORE_PER_NODE_REGARDING_QUEUE, NODES_FAILED,\
-        MAIL_COMMAND, SCHED_TYPE, DEFAULT_QUEUE, SUBMIT_COMMAND
+        MAIL_COMMAND, SCHED_TYPE, DEFAULT_QUEUE, SUBMIT_COMMAND, SACCT_COMMAND
 
     """
     determines the machine maestro is running on and sets
@@ -50,7 +51,8 @@ def get_machine():
 
     tmp_directory = "/tmp"
     machine = socket.gethostname()
-
+    cores_per_node = -1
+    
     if (machine[:4] == "fen3" or machine[:4] == "fen4" or machine[:2] == "cn"):
         machine = "neser"
         tmp_directory = "/scratch/tmp/"
@@ -65,6 +67,7 @@ def get_machine():
         tmp_directory = "/scratch/tmp/"
         MAIL_COMMAND = """ssh gateway1 "ssh cdl3 'mail -s \\"%s\\" %s < %s'" """
         SUBMIT_COMMAND = 'sbatch'
+        SACCT_COMMAND = '/opt/slurm/default/bin/sacct'
         EXCLUSIVE = True
     elif (machine[:3] == "nid" or machine[:3] == "cdl" or machine[:7] == "gateway"):
         machine = "shaheen"
@@ -74,29 +77,42 @@ def get_machine():
         MAIL_COMMAND = """ssh cdl2.hpc.kaust.edu.sa 'mail -s "%s" %s < %s' """
         DEFAULT_QUEUE = "workq"
         SUBMIT_COMMAND = 'sbatch'
+        SACCT_COMMAND = '/opt/slurm/default/bin/sacct'
         EXCLUSIVE = True
-    elif (machine[:2] == "db") or (machine[:2] == "dm") or (machine[:5]=="login") or (machine[:3]=="dlm") or (machine[:4]=="dgpu") or (machine[:2]=="cn"):
+        cores_per_node = 32
+        TMPDIR = "/scratch/tmp"
+    elif (machine[:2] == "db"):
         machine = "ibex"
-        tmp_directory = "/ibex/scratch/"
+        tmp_directory = "/scratch/dragon/intel/"
         MAIL_COMMAND = """mail -s "%s" %s < %s """
         DEFAULT_QUEUE = "batch"
         SUBMIT_COMMAND = 'sbatch'
         EXCLUSIVE = False
     elif (machine[:7] == "kw14425"):
-        machine = "sam"
+        machine = "sam32"
+        CORE_PER_NODE_REGARDING_QUEUE["debug"] = 32
+        CORE_PER_NODE_REGARDING_QUEUE["workq"] = 32
+        MAIL_COMMAND = """mail -s "%s" %s < %s """
+        # SCHED_TYPE = "pbs"
+        DEFAULT_QUEUE = "workq"
+        EXCLUSIVE = False
+        cores_per_node = 32
+    elif (machine[:11] == "samy-EL1352"):
+        machine = "home"
         CORE_PER_NODE_REGARDING_QUEUE["debug"] = 4
         MAIL_COMMAND = """mail -s "%s" %s < %s """
         # SCHED_TYPE = "pbs"
         DEFAULT_QUEUE = "debug"
         EXCLUSIVE = False
+        cores_per_node = 8
     else:
         machine = "localhost"
         tmp_directory = "/tmp"
     # print 'Mail command:' + MAIL_COMMAND
-    return machine, tmp_directory
+    return machine, tmp_directory, cores_per_node
 
 
-MY_MACHINE, TMPDIR = get_machine()
+MY_MACHINE, TMPDIR, CORES_PER_NODE = get_machine()
 MY_MACHINE_FULL_NAME = socket.gethostname()
 
 
@@ -134,8 +150,7 @@ def greps(motif, file_name, col=-99, nb_lines=-1):
     type_matching = "Columns"
     if col == -99:
         type_matching = "Grep"
-
-    if isinstance(col, type(2)):
+    if isinstance(col, 2):
         col = [col]
     if isinstance(col, type("chaine")):
         type_matching = "Regexp"

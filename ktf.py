@@ -1,10 +1,9 @@
 import getopt
+import argparse
 import sys
 import os
 import socket
 import traceback
-
-from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
 import logging
 import logging.handlers
@@ -25,7 +24,6 @@ import shutil
 
 from engine import engine
 from env import *
-from server import *
 
 ERROR = -1
 
@@ -36,20 +34,8 @@ class ktf(engine):
         self.WORKSPACE_FILE = ".ktf.pickle"
         self.check_python_version()
 
-        self.MONITOR = False
-        self.DEBUG = 0
-        self.WHAT = ""
-        self.WHEN = ""
-        self.NB = 0
-        self.BUILD = False
         self.MATRIX_FILE_TEMPLATE = ""
-        self.FAKE = False
-        self.LAUNCH = False
-        self.MACHINE, self.TMPDIR = get_machine()
-        self.WWW = False
-        self.STATUS = False
-        self.EXP = False
-        self.RESERVATION = False
+        self.MACHINE, self.TMPDIR, cores_per_node = get_machine()
 
         self.JOB_ID = {}
         self.JOB_DIR = {}
@@ -62,11 +48,14 @@ class ktf(engine):
 
         if os.path.exists(self.WORKSPACE_FILE):
             self.load_workspace()
-            #print self.timing_results["runs"]
+            #print(self.timing_results["runs"])
         self.shortcuts = 'abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789'
 
-        self.PYSAM_VERSION_REQUIRED = 0.8
+
+        self.NB_COLUMNS_MAX = 3
+        
         engine.__init__(self, "ktf", "0.7")
+        self.start()
 
     #########################################################################
     # usage ...
@@ -75,10 +64,10 @@ class ktf(engine):
     def usage(self, message=None, error_detail="", exit=True):
         """ helping message"""
         if message:
-            print "\n\tError %s:\n\t\t%s\n" % (error_detail, message)
-            print "\ttype ktf -h for the list of available options..."
+            print("\n\tError %s:\n\t\t%s\n" % (error_detail, message))
+            print("\ttype ktf -h for the list of available options...")
         else:
-            print "\n  usage: \n \t python  run_tests.py \
+            print("\n  usage: \n \t python  run_tests.py \
                \n\t\t[ --help ] [ --init ] \
                \n\t\t[ --status ] \
                \n\t\t[ --launch | --build   [ --what=<filter on case>]   [ --case-file=[exp_file.ktf] ] \
@@ -90,98 +79,107 @@ class ktf(engine):
                \n\t\t[ --monitor [ --wide ] [ --when=<filter on date>] [ --what=<filter on test>] ] \
                \n\t\t[ --info ]             [ --info-level=[0|1|2]  ] \
                \n\t\t[ --debug ]            [ --debug-level=[0|1|2] ]   \
-             \n"
+             \n")
         if exit:
             sys.exit(1)
 
     #########################################################################
-    # parsing command line
+    # check for tne option on the command line
+    #########################################################################
+    def initialize_parser(self):
+        engine.initialize_parser(self)
+
+        self.parser.add_argument("-i", "--init", action="store_true",
+                                 help=self.activate_option('init','initialize a ktf environment with example directories'))
+        self.parser.add_argument("-m", "--monitor", action="store_true",
+                                 help=self.activate_option('monitor','list status of jobs and show experiment results'))
+        self.parser.add_argument("-l", "--launch", action="store_true",
+                                 help=self.activate_option('launch','launch experiments'))
+        self.parser.add_argument("-b", "--build", action="store_true",
+                                 help=self.activate_option('build','build experiments without launching them'))
+        self.parser.add_argument("-s", "--status", action="store_true",
+                                 help=self.activate_option('status','show current status of experiments'))
+        self.parser.add_argument("-e", "--exp", action="store_true",
+                                 help=self.activate_option('exp','list all available experiments'))
+        self.parser.add_argument("-w", "--wide", action="store_true",
+                                 help=self.activate_option('wide','format results for a wide screen'))
+
+        self.parser.add_argument("-f", "--case-file", type=str, default= "./%s_cases.ktf" % self.MACHINE,
+                                 help=self.activate_option('case-file','name of the case file'))
+        self.parser.add_argument("-w", "--what", type=str, default="",
+                                 help=self.activate_option('what','filter based on the experiment name'))
+        self.parser.add_argument("-W", "--when", type=str, default="",
+                                 help=self.activate_option('when','filter based on the experiment date'))
+        self.parser.add_argument("--today", action="store",
+                                 help=self.activate_option('today','show only experiment run today'))
+        self.parser.add_argument("--now", action="store",
+                                 help=self.activate_option('now','show only experiment run in the current hour time'))
+
+        self.parser.add_argument("-r", "--reservation", type=str,
+                                 help=self.activate_option('reservation','run experiments under a reservation'))
+        self.parser.add_argument("-p", "--partition", type=str,
+                                 help=self.activate_option('partition','run experiments on this partition'))
+        self.parser.add_argument("-a", "--account", type=str,
+                                 help=self.activate_option('account','run experiments under this account'))
+
+        self.parser.add_argument("-x", "--times", type=int, default=1,
+                                 help=self.activate_option('times','run experiments several times'))
+        self.parser.add_argument("-n", "--nb", type=int, default=0,
+                                 help=self.activate_option('nb','select experiment # nb only'))
+
+        self.parser.add_argument("-np", "--no-pending", action="store_true",
+                             help=argparse.SUPPRESS)
+        self.parser.add_argument("--create-template", action="store_true",
+                             help=argparse.SUPPRESS)
+        self.parser.add_argument("--dry", action="store_true",
+                             help=argparse.SUPPRESS)
+        self.parser.add_argument("--mail-verbosity", action="store_true",
+                             help=argparse.SUPPRESS)
+        self.parser.add_argument("-nfu", "--no-fix-unconsistent", action="store_true",
+                             help=argparse.SUPPRESS)
+
+
+    #########################################################################
+    # starting the dance
     #########################################################################
 
-    def parse(self, args=sys.argv[1:]):
-        """ parse the command line and set global _flags according to it """
+    def start(self):
+        
+        self.log_debug('[KTF:start] entering', 4, trace='CALL')
+        engine.start(self)
+        self.set_variable_from_parsing()
+        self.run()
 
-        self.TEST_FILE = "./%s_cases.ktf" % self.MACHINE
-        self.TIMES = 1
-        self.NB_COLUMNS_MAX = 3
-
-        try:
-            if " --help" in " "+" ".join(args) or " -h " in (" "+" ".join(args)+" "):
-                self.error_report("")
-
-            opts, args = getopt.getopt(args, ["h", "l"],
-                                       ["help", "machine=", "test=", "www",
-                                        "debug", "debug-level=", "init", "monitor", "build", "nb=",
-                                        "what=", "when=", "today", "now",
-                                        "exp", "reservation=", "status", "case-file=", "times=",
-                                        "fake",  "launch", "wide"])
-        except getopt.GetoptError, err:
-            # print help information and exit:
-            self.usage(err)
-
-        for option, argument in opts:
-            if option in ("--log-dir"):
-                self.LOG_DIR = expanduser(argument)
-
-        # initialize Logs
-        self.initialize_log_files()
-
-        # first scan opf option to get prioritary one first
-        # those who sets the state of the process
-        # especially those only setting flags are expected here
-        for option, argument in opts:
-            if option in ("-h", "--help"):
-                self.usage("")
-            elif option in ("--debug"):
-                self.DEBUG = 0
-                self.log.setLevel(logging.DEBUG)
-            elif option in ("--debug-level"):
-                self.DEBUG = int(argument)
-                self.log.setLevel(logging.DEBUG)
-            elif option in ("--what"):
-                self.WHAT = argument
-            elif option in ("--nb"):
-                self.NB = int(argument)
-            elif option in ("--when"):
-                self.WHEN = argument
-            elif option in ("--today"):
-                self.WHEN = datetime.datetime.now().strftime("%y%m%d-")
-            elif option in ("--now"):
+    #########################################################################
+    # set variable from parsing command line
+    #########################################################################
+    
+    def set_variable_from_parsing(self):
+        
+        self.WHAT = self.args.what
+        self.NB = int(self.args.nb)
+        self.TIMES = int(self.args.times)
+        self.WHEN = self.args.when
+        self.EXP = self.args.exp
+        self.MONITOR = self.args.monitor
+        self.RESERVATION = self.args.reservation
+        self.LAUNCH = self.args.launch
+        self.BUILD = self.LAUNCH or self.args.build
+        self.STATUS = self.args.status
+        
+        if self.args.today:
+            self.WHEN = datetime.datetime.now().strftime("%y%m%d-")
+        if self.args.now:
                 self.WHEN = datetime.datetime.now().strftime("%y%m%d-%H")
-            elif option in ("--case-file"):
-                self.TEST_FILE = argument
-            elif option in ("--wide"):
+        if self.args.case_file:
+            self.TEST_FILE = self.args.case_file
+        if self.args.wide:
                 self.NB_COLUMNS_MAX = 9
 
-        for option, argument in opts:
-            if option in ("--init"):
-                self.create_ktf_init()
-                sys.exit(0)
-            elif option in ("--build"):
-                self.BUILD = True
-            elif option in ("--monitor"):
-                self.MONITOR = True
-            elif option in ("-l", "--exp"):
-                self.EXP = True
-                if not(self.WHAT):
-                    self.WHAT = ' '
-            elif option in ("--reservation"):
-                self.RESERVATION = argument
-            elif option in ("--status"):
-                self.STATUS = True
-            elif option in ("--launch"):
-                self.LAUNCH = True
-                self.BUILD = True
-            elif option in ("--fake"):
-                self.DEBUG = True
-                self.FAKE = True
-            elif option in ("--www"):
-                self.WWW = True
-            elif option in ("--times"):
-                self.TIMES = int(argument)
-
-        # second scan to get other arguments
-
+        if self.args.init:
+            self.create_ktf_init()
+            sys.exit(0)
+            
         if self.LAUNCH and self.MONITOR:
             self.usage("--monitor and --launch can not be asked simultaneously")
 
@@ -202,14 +200,14 @@ class ktf(engine):
                 self.run()
                 if self.TIMES > 1:
                     time.sleep(1)
-
+    
     #########################################################################
     # save_workspace
     #########################################################################
 
     def save_workspace(self):
 
-        #print "saving variables to file "+workspace_file
+        #print("saving variables to file "+workspace_file)
         workspace_file = self.WORKSPACE_FILE
         f_workspace = open(workspace_file+".new", "wb")
         pickle.dump(self.JOB_ID, f_workspace)
@@ -226,7 +224,7 @@ class ktf(engine):
 
     def load_workspace(self):
 
-        #print "loading variables from file "+workspace_file
+        #print("loading variables from file "+workspace_file)
 
         f_workspace = open(self.WORKSPACE_FILE, "rb")
         self.JOB_ID = pickle.load(f_workspace)
@@ -260,7 +258,7 @@ class ktf(engine):
                     break
                 output += line
             if len(output):
-                print output
+                print(output)
             sys.stdout.flush()
 
     #########################################################################
@@ -366,6 +364,8 @@ class ktf(engine):
 
         jobs_to_check = list()
         for j in DIRS.keys():
+            if j.find(self.WHAT)==-1:
+                next
             status = self.job_status(j)
             self.log_debug('status : /%s/ for job %s from dir >>%s<<' %
                            (status, j, DIRS[j]), 1)
@@ -399,7 +399,7 @@ class ktf(engine):
                     if status in ('PENDING', 'RUNNING', 'SUSPENDED', 'COMPLETED', 'CANCELLED', 'CANCELLED+', 'FAILED', 'TIMEOUT',
                                   'NODE_FAIL', 'PREEMPTED', 'BOOT_FAIL', 'COMPLETING', 'CONFIGURING', 'RESIZING', 'SPECIAL_EXIT'):
                         if self.DEBUG:
-                            print status, j
+                            print(status, j)
                         if status[-1] == '+':
                             status = status[:-1]
                         self.JOB_STATUS[j] = self.JOB_STATUS[DIRS[j]] = status
@@ -468,15 +468,15 @@ class ktf(engine):
 
         if len(dirs):
             # if level == SCANNING_FROM :
-            #  print "%s%d %s Availables: " % ("\t"*(level+1),len(dirs),ArboNames[level])
+            #  print("%s%d %s Availables: " % ("\t"*(level+1),len(dirs),ArboNames[level]))
             if self.DEBUG > 3:
-                print level, dirs
+                print(level, dirs)
             for d in ["job.submit.out"]:
                 if os.path.exists(path + "/" + d):
                     if os.path.isfile(path + "/" + d):
                         if self.DEBUG:
-                            print "[list_jobs_and_get_time] candidate : %s " % (
-                                path+"/"+"job.submit.out")
+                            print("[list_jobs_and_get_time] candidate : %s " % (
+                                path+"/"+"job.submit.out"))
                         # formatting the dirname
                         p = re.match(r"(.*tests_.*_......-.._.._..)/.*", path)
                         if p:
@@ -493,7 +493,7 @@ class ktf(engine):
                         timing_result = self.get_timing(path)
 
                         if self.DEBUG and not(dir_match in dir_already_printed.keys()):
-                            print "%s- %s " % ("\t"+"   "*(level), dir_match)
+                            print("%s- %s " % ("\t"+"   "*(level), dir_match))
                         dir_already_printed[dir_match] = False
                         case_match = path_new.replace(dir_match+"/", "")
                         case_match = case_match.replace("/job.submit.out", "")
@@ -527,10 +527,10 @@ class ktf(engine):
 
                         self.timing_results[k] = timing_result
                         if self.DEBUG:
-                            print "\t\t%10s s \t %5s %40s " % (
-                                timing_result, proc_match, case_match)
+                            print("\t\t%10s s \t %5s %40s " % (
+                                timing_result, proc_match, case_match))
                         else:
-                            print ".",
+                            print(".",end='')
                             sys.stdout.flush()
 
                 for d in dirs:
@@ -558,19 +558,19 @@ class ktf(engine):
         self.get_current_jobs_status()
         self.scan_jobs_and_get_time(path, level, timing, dir_already_printed)
 
-        print '\n%s experiments availables : ' % len(
-            self.timing_results["runs"])
+        print('\n%s experiments availables : ' % len(
+            self.timing_results["runs"]))
         chunks = splitList(self.timing_results["runs"], 5)
         for runs in chunks:
             for run in runs:
-                print "%12s" % run[-15:],
+                print("%12s" % run[-15:],end='')
             print
 
-        print '\n%s tests availables : ' % len(self.timing_results["cases"])
+        print('\n%s tests availables : ' % len(self.timing_results["cases"]))
         chunks = splitList(self.timing_results["cases"], 5)
         for cases in chunks:
             for case in cases:
-                print "%12s" % case,
+                print("%12s" % case,end='')
             print
 
     #########################################################################
@@ -594,7 +594,7 @@ class ktf(engine):
         total_time = {}
         blank = ""
         self.timing_results["procs"].sort(key=int)
-        #print self.timing_results["procs"]
+        #print(self.timing_results["procs"])
 
         chunks = splitList(
             self.timing_results["runs"], self.NB_COLUMNS_MAX, only=self.WHEN)
@@ -603,7 +603,7 @@ class ktf(engine):
         line_sep = '-' * (4+self.NB_COLUMNS_MAX * 20 + self.CASE_LENGTH_MAX*2)
 
         print
-        print line_sep
+        print(line_sep)
 
         nb_column = 0
         for runs in chunks:
@@ -627,7 +627,7 @@ class ktf(engine):
             if len(cases) == 0:
                 continue
 
-            print header
+            print(header)
 
             for case in cases[0]:
                 nb_line += 1
@@ -646,7 +646,7 @@ class ktf(engine):
                             k = "%s.%s.%s" % (run, proc, case)
                             if k in self.timing_results.keys():
                                 t = self.timing_results[k]
-                                #print case,nb_line-1,(self.shortcuts[nb_column-1],self.shortcuts[nb_line-1])
+                                #print(case,nb_line-1,(self.shortcuts[nb_column-1],self.shortcuts[nb_line-1]))
                                 nb_possible_shortcuts = len(self.shortcuts)
                                 if nb_column <= nb_possible_shortcuts:
                                     s1 = self.shortcuts[nb_column-1]
@@ -679,9 +679,9 @@ class ktf(engine):
                                 try:
                                     s = s + " %13s %4s" % (t, shortcut)
                                 except:
-                                    print 'range error ', nb_line-1, nb_column-1
+                                    print('range error ', nb_line-1, nb_column-1)
                                     sys.exit(1)
-                                #print "%9s" % (t),
+                                #print("%9s" % (t),end='')
                                 nb_tests = nb_tests + 1
                                 if not(run in total_time.keys()):
                                     total_time[run] = 0
@@ -693,15 +693,15 @@ class ktf(engine):
                             else:
                                 s = s + "%12s       " % "-"
                         s = s + "%s%3s / %s" % (blank, nb_runs, case)
-                        print s
+                        print(s)
             s = format_run % "total time"
             for run in runs:
                 if not(run in total_time.keys()):
                     total_time[run] = 0
                 s = s + " %18s " % total_time[run]
             s = s + "%s%3s" % (blank, nb_tests) + ' tests in total'
-            print s
-            print line_sep
+            print(s)
+            print(line_sep)
             self.log_debug(
                 'at the end of the runs chunk nb_column=%s' % (nb_column), 2)
 
@@ -721,7 +721,7 @@ class ktf(engine):
             return status
 
         if not(os.path.exists(path+"/job.out")):
-            # sk print 'NotYet for %s' % path+'/job.out'
+            # sk print('NotYet for %s' % path+'/job.out')
             return "None/"+status  # [:2]
 
         if os.path.exists(path+"/job.err"):
@@ -776,21 +776,21 @@ class ktf(engine):
                     ellapsed_time = 'ERROR_2'
 
                 if self.DEBUG:
-                    print "[get_time] from_time=!%s! start_timing=!%s! from_date" % (
-                        from_time, start_timing[1]), from_date
-                    print "[get_time]   to_time=!%s!   end_timing=!%s! to_date" % (
-                        to_time, end_timing[1]), to_date
+                    print("[get_time] from_time=!%s! start_timing=!%s! from_date" % (
+                        from_time, start_timing[1]), from_date)
+                    print("[get_time]   to_time=!%s!   end_timing=!%s! to_date" % (
+                        to_time, end_timing[1]), to_date)
 
                 (to_hour, to_minute, to_second) = to_time.split(":")
                 ellapsed_time = ((int(to_day)*24.+int(to_hour))*60+int(to_minute))*60+int(to_second) \
                     - (((int(from_day)*24.+int(from_hour)) *
                         60+int(from_minute))*60+int(from_second))
                 if self.DEBUG:
-                    print from_date, to_date, (from_month, from_day,
-                                               from_time), (to_month, to_day, to_time)
+                    print(from_date, to_date, (from_month, from_day,
+                                               from_time), (to_month, to_day, to_time))
             else:
                 if self.DEBUG:
-                    print "[get_timing] Exception type 1"
+                    print("[get_timing] Exception type 1")
                     if self.DEBUG > 1:
                         except_print()
                 ellapsed_time = "NOGOOD"
@@ -807,7 +807,7 @@ class ktf(engine):
 
     def my_timing(self, dir, ellapsed_time, status):
         if self.DEBUG:
-            print dir
+            print(dir)
         return ellapsed_time
 
     #########################################################################
@@ -815,8 +815,7 @@ class ktf(engine):
     #########################################################################
 
     def clean_line(self, line):
-        if self.DEBUG:
-            print "analyzing line !!"+line+"!!"
+        self.log_debug("[clean_line] analyzing line !!"+line+"!!",2,trace="PARSE")
         # replace any multiple blanks by one only
         p = re.compile("\s+")
         line = p.sub(' ', line[:-1])
@@ -827,8 +826,7 @@ class ktf(engine):
         p = re.compile("^\s+")
         line = p.sub('', line)
         # line is clean!
-        if self.DEBUG:
-            print "analyzing  line cleaned !!"+line+"!!"
+        self.log_debug("[clean_line] analyzing  line cleaned !!"+line+"!!",2,trace="PARSE")
         return line
 
     def additional_tag(self, line):
@@ -837,8 +835,7 @@ class ktf(engine):
             # line=line[4:].replace("=2
             # yes! saving it in direct_tag and go to next line
             (t, v) = (matchObj.group(1), matchObj.group(2))
-            if self.DEBUG:
-                print "direct tag definitition : ", line
+            self.log_debug("[additional_tag] direct tag definitition : " + line, 2, trace="PARSE")
             self.direct_tag[t] = v
             return True
         return False
@@ -853,10 +850,10 @@ class ktf(engine):
         now = time.strftime('%y%m%d-%H_%M_%S', time.localtime())
 
         if not(os.path.exists(test_matrix_filename)):
-            print "\n\t ERROR : missing test matrix file >>%s<< for machine %s " % (
-                test_matrix_filename, self.MACHINE)
-            print "\n\t         ktf --init  can be called to create the templates"
-            print "\t\tor\n\t         ktf --case-file=<exp ktf file> can be called to read the cases from another file"
+            print("\n\t ERROR : missing test matrix file >>%s<< for machine %s " % (
+                test_matrix_filename, self.MACHINE))
+            print("\n\t         ktf --init  can be called to create the templates")
+            print("\t\tor\n\t         ktf --case-file=<exp ktf file> can be called to read the cases from another file")
             if self.EXP:
                 tags_ok = False
                 mandatory_fields = ["Case", "Experiment"]
@@ -895,20 +892,19 @@ class ktf(engine):
                         continue
                     for k in self.direct_tag.keys():
                         line = line+" "+self.direct_tag[k]
-                    if self.DEBUG:
-                        print line
+                    self.log_debug("[run] " + line,2,trace="PARAMS")
                     matchObj = re.match("^.*"+self.WHAT+".*$", line)
                     # prints all the tests that will be selected
                     if (matchObj) and not(self.ALREADY_AKNKOWLEDGE):
                         if nb_case == 1:
                             for k in self.direct_tag.keys():
-                                print "%6s" % k,
+                                print("%6s" % k,end='')
                             print
 
                         if not(self.NB) or self.NB == nb_case:
-                            print "%3d: " % (nb_case),
+                            print("%3d: " % (nb_case),end='')
                             for k in line.split(" "):
-                                print "%6s " % k[:20],
+                                print("%6s " % k[:20],end='')
                             print
                         nb_case = nb_case + 1
 
@@ -919,7 +915,7 @@ class ktf(engine):
             if not(self.ALREADY_AKNKOWLEDGE):
                 input_var = raw_input("Is this correct ? (yes/no) ")
                 if not(input_var == "yes"):
-                    print "ABORTING: No clear confirmation... giving up!"
+                    print("ABORTING: No clear confirmation... giving up!")
                     sys.exit(1)
                 self.ALREADY_AKNKOWLEDGE = True
 
@@ -960,48 +956,42 @@ class ktf(engine):
             if self.NB and not(self.NB == nb_case-1):
                 continue
 
-            if self.DEBUG:
-                print "testing : ", line
-                print "tags_names:", tags_names
+            self.log_debug("[run] line " + line,2,trace="PARAMS")
+            self.log_debug("[run] tags_names" + tags_names,2,trace="PARAMS")
 
             #tags = line.split(" ")
             tags = shlex.split(line)
 
             if not(len(tags) == len(tags_names)):
-                print "\tError : pb encountered in reading the test matrix file : %s" % test_matrix_filename,
-                print "at  line \n\t\t!%s!" % line
-                print "\t\tless parameters to read than expected... Those expected are"
-                print "\t\t\t", tags_names
-                print "\t\tand so far, we read"
-                print "\t\t\t", tag
+                print("\tError : pb encountered in reading the test matrix file : %s" % test_matrix_filename,end='')
+                print("at  line \n\t\t!%s!" % line)
+                print("\t\tless parameters to read than expected... Those expected are")
+                print("\t\t\t", tags_names)
+                print("\t\tand so far, we read")
+                print("\t\t\t", tag)
                 sys.exit(1)
 
             ts = copy.deepcopy(tags_names)
             tag = {}
-            if self.DEBUG:
-                print "ts", ts
-                print "tags", tags
+            self.log_debug("[run] ts " + ts,3,trace="PARAMS")
+            self.log_debug("[run] tag" + tag,3,trace="PARAMS")
 
             while(len(ts)):
                 t = ts.pop(0)
                 tag["%s" % t] = tags.pop(0)
-                if self.DEBUG:
-                    print "tag %s : !%s! " % (t, tag["%s" % t])
-            if self.DEBUG:
-                print "tag:", tag
+                self.log_debug("[run] tag %s : !%s! " % (t, tag["%s" % t])), 3,trace="PARAMS")
+            self.log_debug("[run] tag" + tag,3,trace="PARAMS")
 
             # adding the tags enforced by a #KTF directive
             tag.update(self.direct_tag)
-
-            if self.DEBUG:
-                print self.direct_tag
-                print "tag after update:", tag
+            self.log_debug("[run] direct_tag" + self.direct_tag,3,trace="PARAMS")
+            self.log_debug("[run] tag after update" + tag,3,trace="PARAMS")
 
             # checking if mandatory tags are there
             for c in mandatory_fields:
                 if not(c in tag.keys()):
-                    print "\n\t ERROR : missing column /%s/ in test matrix file %s for machine %s" % \
-                        (c, test_matrix_filename, self.MACHINE)
+                    print("\n\t ERROR : missing column /%s/ in test matrix file %s for machine %s" % \
+                        (c, test_matrix_filename, self.MACHINE))
                     sys.exit(1)
 
             # all tags are valued at this time
@@ -1011,8 +1001,8 @@ class ktf(engine):
                 self.MACHINE, now, tag['Experiment'], tag["Case"])
             cmd = ""
 
-            print "\tcreating test directory %s for %s: " % (
-                dest_directory, self.MACHINE)
+            print("\tcreating test directory %s for %s: " % (
+                dest_directory, self.MACHINE))
 
             if "Submit" in tag.keys():
                 submit_command = tag["Submit"]
@@ -1047,7 +1037,7 @@ class ktf(engine):
                     (os.path.dirname(job_file), submit_command,
                      os.path.basename(job_file))
                 if self.LAUNCH:
-                    print "\tsubmitting job %s " % job_file
+                    print("\tsubmitting job %s " % job_file)
                     self.wrapped_system(
                         cmd, comment="submitting job %s" % job_file)
                     output_file = "%s/job.submit.out" % os.path.dirname(
@@ -1056,34 +1046,33 @@ class ktf(engine):
                         job_file)
                     if os.path.exists(error_file):
                         if os.path.getsize(error_file) > 0:
-                            print "\n\tError... something went wrong when submitting job %s " % job_file
-                            print "\n           here's the error file just after submission : \n\t\t%s\n" % error_file
-                            print "\t\tERR> " + \
+                            print("\n\tError... something went wrong when submitting job %s " % job_file)
+                            print("\n           here's the error file just after submission : \n\t\t%s\n" % error_file)
+                            print("\t\tERR> " + \
                                 "ERR> \t\t".join(
-                                    open(error_file, "r").readlines())
-                            print "           here's the submission command: \n\t\t%s\n" % cmd
+                                    open(error_file, "r").readlines()))
+                            print("           here's the submission command: \n\t\t%s\n" % cmd)
                             job_script_content = open(
                                 job_file, 'r').readlines()
-                            print "\n           here's the job_script        : "
+                            print("\n           here's the job_script        : ")
                             for chunk in splitList(job_script_content, 12):
-                                print "".join(chunk)[:-1]
+                                print("".join(chunk)[:-1])
                                 input_var = raw_input(
                                     " [ hit only return to continue or any other input to stop]")
                                 if not(input_var == ""):
-                                    print "..."
+                                    print("...")
                                     break
                             sys.exit(1)
                     f = open(output_file, "r").readline()[:-1].split(" ")[-1]
                     self.JOB_ID[os.path.abspath(os.path.dirname(job_file))] = f
-                    if self.DEBUG:
-                        print 'job_id -> ', f
+                    self.log_debug("[run] job_id" + f,3,trace="PARAMS")
 
                 else:
-                    print "\tshould launch job %s (if --launch added) " % job_file
-                #print cmd
+                    print("\tshould launch job %s (if --launch added) " % job_file)
+                #print(cmd
             else:
-                print "\t\tWarning... no job file found for machine %s in test directory %s " % \
-                      (self.MACHINE, dest_directory)
+                print("\t\tWarning... no job file found for machine %s in test directory %s " % \
+                      (self.MACHINE, dest_directory))
             print
             self.save_workspace()
 
