@@ -129,6 +129,8 @@ class ktf(engine):
 
         self.parser.add_argument("--fake", action="store_true",
                                  help=self.activate_option('fake','do not run any call'))
+        self.parser.add_argument("-y","--yes", action="store_true",
+                                 help=self.activate_option('yes','responds yes to every filtering question'))
 
         self.parser.add_argument("-np", "--no-pending", action="store_true",
                              help=argparse.SUPPRESS)
@@ -151,7 +153,7 @@ class ktf(engine):
         self.log_debug('[KTF:start] entering', 4, trace='CALL')
         engine.start(self)
         self.set_variable_from_parsing()
-        self.run()
+        engine.run(self)
         self.ktf_start()
 
     #########################################################################
@@ -171,7 +173,8 @@ class ktf(engine):
         self.BUILD = self.LAUNCH or self.args.build
         self.STATUS = self.args.status
         self.FAKE = self.args.fake
-
+        self.ALREADY_ACKNKOWLEDGE = self.args.yes
+        
         if self.args.today:
             self.WHEN = datetime.datetime.now().strftime("%y%m%d-")
         if self.args.now:
@@ -205,9 +208,9 @@ class ktf(engine):
         elif self.MONITOR:
             self.list_jobs_and_get_time()
         else:
-            self.ALREADY_AKNKOWLEDGE = False
+            self.ALREADY_ACKNKOWLEDGE = False
             for nb_experiment in range(self.TIMES):
-                self.run()
+                self.ktf_run()
                 if self.TIMES > 1:
                     time.sleep(1)
     
@@ -337,6 +340,7 @@ class ktf(engine):
                 self.log_debug('j=/%s/ for %s ; l= >>%s<< ' %
                                (job_id, f, l), 1)
                 d = os.path.abspath(os.path.dirname(f))
+                self.log_debug("DIRS: " + pprint.pformat(DIRS),3,trace='STATUS')
                 if not(d in DIRS.keys()):
                     self.log_debug(
                         'adding j=/%s/ for %s ; l= >>%s<< ' % (job_id, d, l))
@@ -830,7 +834,7 @@ class ktf(engine):
     # generation of the jobs and submission of them if --build
     #########################################################################
 
-    def run(self):
+    def ktf_run(self):
 
         test_matrix_filename = self.TEST_FILE
         now = time.strftime('%y%m%d-%H_%M_%S', time.localtime())
@@ -859,7 +863,7 @@ class ktf(engine):
         # warning message is sent to the user if filter is applied on the jobs to run
 
         if len(self.WHAT) or self.NB:
-            if not(self.ALREADY_AKNKOWLEDGE) and not(self.WHAT == ' '):
+            if not(self.ALREADY_ACKNKOWLEDGE) and not(self.WHAT == ' '):
                 self.log_info(
                     "the filter %s will be applied... Only following lines will be taken into account : " % (self.WHAT))
             if self.NB:
@@ -881,7 +885,7 @@ class ktf(engine):
                     self.log_debug("[run] " + line,2,trace="PARAMS")
                     matchObj = re.match("^.*"+self.WHAT+".*$", line)
                     # prints all the tests that will be selected
-                    if (matchObj) and not(self.ALREADY_AKNKOWLEDGE):
+                    if (matchObj) and not(self.ALREADY_ACKNKOWLEDGE):
                         if nb_case == 1:
                             for k in self.direct_tag.keys():
                                 print("%6s" % k,end='')
@@ -898,12 +902,12 @@ class ktf(engine):
             if self.EXP:
                 sys.exit(0)
             # askine to the user if he is ok or not
-            if not(self.ALREADY_AKNKOWLEDGE):
+            if not(self.ALREADY_ACKNKOWLEDGE):
                 input_var = raw_input("Is this correct ? (yes/no) ")
                 if not(input_var == "yes"):
                     print("ABORTING: No clear confirmation... giving up!")
                     sys.exit(1)
-                self.ALREADY_AKNKOWLEDGE = True
+                self.ALREADY_ACKNKOWLEDGE = True
 
             tags_ok = False
 
