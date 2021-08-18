@@ -89,7 +89,7 @@ class ktf(engine):
     def initialize_parser(self):
         engine.initialize_parser(self)
 
-        self.parser.add_argument("-i", "--init", action="store_true",
+        self.parser.add_argument("--init", action="store_true",
                                  help=self.activate_option('init','initialize a ktf environment with example directories'))
         self.parser.add_argument("-m", "--monitor", action="store_true",
                                  help=self.activate_option('monitor','list status of jobs and show experiment results'))
@@ -110,9 +110,9 @@ class ktf(engine):
                                  help=self.activate_option('what','filter based on the experiment name'))
         self.parser.add_argument("-W", "--when", type=str, default="",
                                  help=self.activate_option('when','filter based on the experiment date'))
-        self.parser.add_argument("--today", action="store",
+        self.parser.add_argument("--today", action="store_true",
                                  help=self.activate_option('today','show only experiment run today'))
-        self.parser.add_argument("--now", action="store",
+        self.parser.add_argument("--now", action="store_true",
                                  help=self.activate_option('now','show only experiment run in the current hour time'))
 
         self.parser.add_argument("-r", "--reservation", type=str,

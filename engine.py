@@ -226,7 +226,7 @@ class engine(object):
             if not(self.args.rollback or self.args.rollback_list):
                 self.check_if_directory_was_moved()
         except:
-            self.log_info('ZZZ self.args.rollback is not defined',1)
+            self.log_info('ZZZ self.args.rollback is not defined',4)
 
         # automated lock
         self.lock_taken = {'fake_file':-1}
@@ -1728,15 +1728,37 @@ class engine(object):
 
         output = 'FAKE EXECUTION'
         if force or (not(fake) and not(self.args.fake)):
-            try:
-                proc = subprocess.run(cmd.split(" "), stdout=subprocess.PIPE, \
-                                      stderr=subprocess.STDOUT)
-                returncode = proc.returncode
-                output = str(proc.stdout.decode('utf8'))
-                err = None
-                proc.check_returncode()
-            except subprocess.CalledProcessError as e:
-                returncode, output, err = e.returncode, "", e.output
+            if cmd.find("\n")==-1 and cmd.find(";")==-1:
+                try:
+                    proc = subprocess.run(cmd.split(" "), stdout=subprocess.PIPE, \
+                                        stderr=subprocess.STDOUT)
+                    returncode = proc.returncode
+                    output = str(proc.stdout.decode('utf8'))
+                    err = None
+                    proc.check_returncode()
+                except subprocess.CalledProcessError as e:
+                    returncode, output, err = e.returncode, "", e.output
+            else:
+                proc = subprocess.Popen(
+                        cmd, shell=True, bufsize=1, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                output = ""
+                return_code = 0
+
+                while (True):
+                    # Read line from stdout, break if EOF reached, append line to output
+                    line = proc.stdout.readline()
+                    line = line.decode('utf8')
+                    if (line == ""):
+                        break
+                    output += line
+
+        if trace and self.args.save:
+            self.SYSTEM_OUTPUTS[self.args.save].append(output)
+            self.log_debug('writing to trace file / output = /%s/' % output,3,trace='SYSTEM')
+        if (return_code):
+            return (return_code,output)
+        else:
+            return output
 
         # # os.system(cmd)
         # # subprocess.call(cmd,shell=True,stderr=subprocess.STDOUT)
