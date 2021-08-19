@@ -245,6 +245,8 @@ class ktf(engine):
         self.timing_results = pickle.load(f_workspace)
         f_workspace.close()
 
+        print("xxxxxxxxxxxxx")
+        self.log_debug('self.JOB_ID :' + pprint.pformat(self.JOB), 2, trace='workspace')
         for job_dir in self.JOB_ID.keys():
             job_id = self.JOB_ID[job_dir]
             self.JOB_DIR[job_id] = job_dir
@@ -326,7 +328,8 @@ class ktf(engine):
         IDS = self.JOB_ID
 
         DIRS_CANDIDATES = find_files('.', 'job.submit.out')
-
+        self.log_debug('DIRS_CANDIDATES:' + DIRS_CANDIDATES, 1, trace='STATUS')
+        
         if not(len(DIRS_CANDIDATES) == len(IDS)):
             self.log_info(
                 'Oops some status jobs are missing... let me try to reconstruct them...')
