@@ -37,9 +37,9 @@ class ktf(engine):
         self.MATRIX_FILE_TEMPLATE = ""
         self.MACHINE, self.TMPDIR, cores_per_node = get_machine()
 
-        self.JOB_ID = {}
-        self.JOB_DIR = {}
-        self.JOB_STATUS = {}
+        self.KTF_JOB_ID = {}
+        self.KTF_JOB_DIR = {}
+        self.KTF_JOB_STATUS = {}
         self.timing_results = {}
         self.timing_results["procs"] = []
         self.timing_results["cases"] = []
@@ -223,8 +223,8 @@ class ktf(engine):
         #print("saving variables to file "+workspace_file)
         workspace_file = self.WORKSPACE_FILE
         f_workspace = open(workspace_file+".new", "wb")
-        pickle.dump(self.JOB_ID, f_workspace)
-        pickle.dump(self.JOB_STATUS, f_workspace)
+        pickle.dump(self.KTF_JOB_ID, f_workspace)
+        pickle.dump(self.KTF_JOB_STATUS, f_workspace)
         pickle.dump(self.timing_results, f_workspace)
         f_workspace.close()
         if os.path.exists(workspace_file):
@@ -240,16 +240,16 @@ class ktf(engine):
         #print("loading variables from file "+workspace_file)
 
         f_workspace = open(self.WORKSPACE_FILE, "rb")
-        self.JOB_ID = pickle.load(f_workspace)
-        self.JOB_STATUS = pickle.load(f_workspace)
+        self.KTF_JOB_ID = pickle.load(f_workspace)
+        self.KTF_JOB_STATUS = pickle.load(f_workspace)
         self.timing_results = pickle.load(f_workspace)
         f_workspace.close()
 
         print("xxxxxxxxxxxxx")
-        self.log_debug('self.JOB_ID :' + pprint.pformat(self.JOB), 2, trace='workspace')
-        for job_dir in self.JOB_ID.keys():
-            job_id = self.JOB_ID[job_dir]
-            self.JOB_DIR[job_id] = job_dir
+        self.log_debug('self.KTF_JOB_ID :' + pprint.pformat(self.KTF_JOB), 2, trace='workspace')
+        for job_dir in self.KTF_JOB_ID.keys():
+            job_id = self.KTF_JOB_ID[job_dir]
+            self.KTF_JOB_DIR[job_id] = job_dir
 
 
     #########################################################################
@@ -324,11 +324,11 @@ class ktf(engine):
 
         status_error = False
 
-        DIRS = self.JOB_DIR
-        IDS = self.JOB_ID
+        DIRS = self.KTF_JOB_DIR
+        IDS = self.KTF_JOB_ID
 
         DIRS_CANDIDATES = find_files('.', 'job.submit.out')
-        self.log_debug('DIRS_CANDIDATES:' + DIRS_CANDIDATES, 1, trace='STATUS')
+        self.log_debug('DIRS_CANDIDATES:' + pprint.pformat(DIRS_CANDIDATES), 1, trace='STATUS')
         
         if not(len(DIRS_CANDIDATES) == len(IDS)):
             self.log_info(
@@ -348,12 +348,12 @@ class ktf(engine):
                     self.log_debug(
                         'adding j=/%s/ for %s ; l= >>%s<< ' % (job_id, d, l))
                     if len(job_id):
-                        self.JOB_DIR[job_id] = d
-                        self.JOB_ID[d] = job_id
-                        self.JOB_STATUS[job_id] = self.JOB_STATUS[d] = 'NOINFO'
+                        self.KTF_JOB_DIR[job_id] = d
+                        self.KTF_JOB_ID[d] = job_id
+                        self.KTF_JOB_STATUS[job_id] = self.KTF_JOB_STATUS[d] = 'NOINFO'
                     else:
-                        self.JOB_ID[d] = -1
-                        self.JOB_STATUS[d] = 'REJECTED'
+                        self.KTF_JOB_ID[d] = -1
+                        self.KTF_JOB_STATUS[d] = 'REJECTED'
 
         jobs_to_check = list()
         for j in DIRS.keys():
@@ -380,6 +380,7 @@ class ktf(engine):
             else:
                 status_error = True
             output = ""
+        self.log_debug("output:" + pprint.pformat(output),2,trace="CMD")
         for l in output.split("\n"):
             try:
                 p = re.compile("\s+")
@@ -395,7 +396,7 @@ class ktf(engine):
                             print(status, j)
                         if status[-1] == '+':
                             status = status[:-1]
-                        self.JOB_STATUS[j] = self.JOB_STATUS[DIRS[j]] = status
+                        self.KTF_JOB_STATUS[j] = self.KTF_JOB_STATUS[DIRS[j]] = status
             except:
                 if self.DEBUG:
                     self.dump_exception(
@@ -425,8 +426,8 @@ class ktf(engine):
             dirname = os.path.abspath(id_or_file)
 
         for key in [id_or_file, dirname]:
-            if key in self.JOB_STATUS.keys():
-                status = self.JOB_STATUS[key]
+            if key in self.KTF_JOB_STATUS.keys():
+                status = self.KTF_JOB_STATUS[key]
                 self.log_debug("[job_status] job_status on %s --> %s" %
                                (id_or_file, status), 1)
                 return status
@@ -1057,7 +1058,7 @@ class ktf(engine):
                                     break
                             sys.exit(1)
                     f = open(output_file, "r").readline()[:-1].split(" ")[-1]
-                    self.JOB_ID[os.path.abspath(os.path.dirname(job_file))] = f
+                    self.KTF_JOB_ID[os.path.abspath(os.path.dirname(job_file))] = f
                     self.log_debug("[run] job_id" + f,3,trace="PARAMS")
 
                 else:

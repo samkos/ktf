@@ -277,6 +277,7 @@ def getDate():
 
 
 def find_files(directory, pattern):
+    
   res = []
   for root, dirs, files in os.walk(directory):
     for basename in files:
