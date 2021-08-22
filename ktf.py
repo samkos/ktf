@@ -677,11 +677,13 @@ class ktf(engine):
                                 nb_tests = nb_tests + 1
                                 if not(run in total_time.keys()):
                                     total_time[run] = 0
-                                if t > 0:
-                                    try:
-                                        total_time[run] += self.ktf_timing_results[k]
-                                    except:
-                                        pass
+                                try:
+                                    time_of_run = float(t.split("/")[0])
+                                    if time_of_run > 0:
+                                            total_time[run] += time_of_run
+                                except:
+                                    self.log_debug('unreadable run time for run %s : %s' % (k,t), 3, trace="TIMER")
+                                    pass
                             else:
                                 s = s + "%12s       " % "-"
                         s = s + "%s%3s / %s" % (blank, nb_runs, case)
