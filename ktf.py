@@ -47,6 +47,8 @@ class ktf(engine):
         self.ktf_list_of_experiments = {}
         self.ktf_list_of_experiments_tag = {}
         self.ktf_nb_of_experiments = 0
+        self.ktf_results_of_experiments = {}
+        self.ktf_results_of_experiments_index = {}
         self.CASE_LENGTH_MAX = 0
 
         if os.path.exists(self.WORKSPACE_FILE):
@@ -547,6 +549,8 @@ class ktf(engine):
                                         'accepting path >>%s<< because of filter applied' % path_new, 1, trace="SCAN")
                             self.scan_jobs_and_get_time(
                                 path_new, level+1, timing, dir_already_printed)
+        self.log_debug(
+            "[list_jobs_and_get_time] end of scanning %s for timings=%s" % (path, timing), 2)
 
     #########################################################################
     # display ellapsed time and preparing the linked directory
