@@ -331,7 +331,12 @@ class ktf(engine):
         DIRS = self.KTF_JOB_DIR
         IDS = self.KTF_JOB_ID
 
-        DIRS_CANDIDATES = find_files('.', 'job.submit.out')
+        DIRS_CANDIDATES_UNFILTERED = find_files('.', 'job.submit.out')
+        self.log_debug('DIRS_CANDIDATES_UNFILTERED:' + pprint.pformat(DIRS_CANDIDATES_UNFILTERED), 1, trace='STATUS')
+        DIRS_CANDIDATES = []
+        for d in DIRS_CANDIDATES_UNFILTERED:
+            if d.find(self.WHAT)>-1:
+                DIRS_CANDIDATES = DIRS_CANDIDATES + [d]
         self.log_debug('DIRS_CANDIDATES:' + pprint.pformat(DIRS_CANDIDATES), 1, trace='STATUS')
         
         if not(len(DIRS_CANDIDATES) == len(IDS)):
