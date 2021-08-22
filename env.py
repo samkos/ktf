@@ -150,7 +150,7 @@ def greps(motif, file_name, col=-99, nb_lines=-1):
     type_matching = "Columns"
     if col == -99:
         type_matching = "Grep"
-    if isinstance(col, 2):
+    if isinstance(col, int):
         col = [col]
     if isinstance(col, type("chaine")):
         type_matching = "Regexp"

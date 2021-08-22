@@ -21,6 +21,14 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "ktf --mon DEB",
+            "type": "python",
+            "request": "launch",
+            "program": "run_tests.py",
+            "args": ["--mon","-f","MYT,TIMER","--today"],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "ktf --launch",
             "type": "python",
             "request": "launch",

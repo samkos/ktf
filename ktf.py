@@ -44,6 +44,9 @@ class ktf(engine):
         self.ktf_timing_results["procs"] = []
         self.ktf_timing_results["cases"] = []
         self.ktf_timing_results["runs"] = []
+        self.ktf_list_of_experiments = {}
+        self.ktf_list_of_experiments_tag = {}
+        self.ktf_nb_of_experiments = 0
         self.CASE_LENGTH_MAX = 0
 
         if os.path.exists(self.WORKSPACE_FILE):
@@ -211,6 +214,8 @@ class ktf(engine):
             self.ALREADY_ACKNKOWLEDGE = False
             for nb_experiment in range(self.TIMES):
                 self.ktf_run()
+                if self.EXP:
+                    self.list_experiments()
                 if self.TIMES > 1:
                     time.sleep(1)
     
@@ -245,7 +250,6 @@ class ktf(engine):
         self.ktf_timing_results = pickle.load(f_workspace)
         f_workspace.close()
 
-        print("xxxxxxxxxxxxx")
         # self.log_debug('self.KTF_JOB_ID :' + pprint.pformat(self.KTF_JOB_ID), 2, trace='workspace')
         for job_dir in self.KTF_JOB_ID.keys():
             job_id = self.KTF_JOB_ID[job_dir]
@@ -455,7 +459,7 @@ class ktf(engine):
         if self.WHEN and not(path == '.'):
             if path.find(self.WHEN) < 0:
                 self.log_debug(
-                    'rejecting path >>%s<< because of filter applied' % path, 2)
+                    'rejecting path >>%s<< because of filter applied' % path, 2, trace="SCAN")
                 return
 
         dirs = sorted(os.listdir(path))
@@ -716,6 +720,7 @@ class ktf(engine):
 
         if not(os.path.exists(path+"/job.out")):
             # sk print('NotYet for %s' % path+'/job.out')
+            self.log_debug("No job.out found for %s" % path,2,trace='TIMER')
             return "None/"+status  # [:2]
 
         if os.path.exists(path+"/job.err"):
@@ -1020,7 +1025,7 @@ class ktf(engine):
 
             tag["STARTING_DIR"] = "."
             if self.EXP:
-                print(tag)
+                self.add_experiment_to_list(tag)
             if self.LAUNCH or self.BUILD:    
                 self.system(cmd, comment=comment)
                 job_file = self.substitute(dest_directory, tag) 
@@ -1068,6 +1073,29 @@ class ktf(engine):
                         (self.MACHINE, dest_directory))
                 print
                 self.save_workspace()
+
+
+    #########################################################################
+    # helper fu
+    #########################################################################
+
+    def add_experiment_to_list(self,tag):
+        self.log_debug("tag : " + pprint.pformat(tag), 3, trace="EXP")
+        self.ktf_list_of_experiments[self.ktf_nb_of_experiments] = {}
+        for (k,v) in tag.items():
+            self.ktf_list_of_experiments_tag[k] = True
+            self.ktf_list_of_experiments[self.ktf_nb_of_experiments][k] = v
+        self.ktf_nb_of_experiments = self.ktf_nb_of_experiments +1
+
+    def list_experiments(self):
+        for t in self.ktf_list_of_experiments_tag.keys():
+            print("%15s" % t, end="" )
+        print()
+        for i in range(self.ktf_nb_of_experiments):
+            for t in self.ktf_list_of_experiments_tag.keys():
+                print("%15s" % self.ktf_list_of_experiments[i][t], end="" )
+            print()
+        print()
 
     #########################################################################
     # os.system wrapped to enable Trace if needed

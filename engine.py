@@ -536,7 +536,7 @@ class engine(object):
             traceback.print_exception(exceptionType,exceptionValue, exceptionTraceback,\
                                       limit=None,file=sys.stdout)
         print('\n #######!!!!!!!!!!######## printing calling stack at ',where,'############')
-        print(''.join(traceback.format_stack()[:]))
+        traceback.format_stack()
         print('#' * 80)
 
     def set_log_prefix(self,prefix):
