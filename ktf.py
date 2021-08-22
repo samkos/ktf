@@ -991,9 +991,6 @@ class ktf(engine):
                 self.MACHINE, now, tag['Experiment'], tag["Case"])
             cmd = ""
 
-            print("\tcreating test directory %s for %s: " % (
-                dest_directory, self.MACHINE))
-
             if "Submit" in tag.keys():
                 submit_command = tag["Submit"]
             else:
@@ -1016,55 +1013,61 @@ class ktf(engine):
                         "\ntar fc - -C %s . | tar xvf - > /dev/null  " % (
                             common_dir)
 
-            self.system(cmd, comment="copying %s in %s" %
-                                (common_dir, dest_directory))
+            comment = "\tcreating test directory %s for %s and populating it from %s : " % (
+                dest_directory, self.MACHINE, common_dir)
+            self.log_debug(comment, 3, trace='PROCESS')
+
 
             tag["STARTING_DIR"] = "."
-            job_file = self.substitute(dest_directory, tag)
+            if self.EXP:
+                print(tag)
+            if self.LAUNCH or self.BUILD:    
+                self.system(cmd, comment=comment)
+                job_file = self.substitute(dest_directory, tag) 
 
-            if job_file:
-                cmd = "cd %s; %s %s > job.submit.out 2> job.submit.err " % \
-                    (os.path.dirname(job_file), submit_command,
-                     os.path.basename(job_file))
-                if self.LAUNCH:
-                    print("\tsubmitting job %s " % job_file)
-                    self.system(
-                        cmd, comment="submitting job %s" % job_file)
-                    output_file = "%s/job.submit.out" % os.path.dirname(
-                        job_file)
-                    error_file = "%s/job.submit.err" % os.path.dirname(
-                        job_file)
-                    if os.path.exists(error_file):
-                        if os.path.getsize(error_file) > 0:
-                            print("\n\tError... something went wrong when submitting job %s " % job_file)
-                            print("\n           here's the error file just after submission : \n\t\t%s\n" % error_file)
-                            print("\t\tERR> " + \
-                                "ERR> \t\t".join(
-                                    open(error_file, "r").readlines()))
-                            print("           here's the submission command: \n\t\t%s\n" % cmd)
-                            job_script_content = open(
-                                job_file, 'r').readlines()
-                            print("\n           here's the job_script        : ")
-                            for chunk in splitList(job_script_content, 12):
-                                print("".join(chunk)[:-1])
-                                input_var = raw_input(
-                                    " [ hit only return to continue or any other input to stop]")
-                                if not(input_var == ""):
-                                    print("...")
-                                    break
-                            sys.exit(1)
-                    f = open(output_file, "r").readline()[:-1].split(" ")[-1]
-                    self.KTF_JOB_ID[os.path.abspath(os.path.dirname(job_file))] = f
-                    self.log_debug("[run] job_id" + f,3,trace="PARAMS")
+                if job_file:
+                    cmd = "cd %s; %s %s > job.submit.out 2> job.submit.err " % \
+                        (os.path.dirname(job_file), submit_command,
+                        os.path.basename(job_file))
+                    if self.LAUNCH:
+                        print("\tsubmitting job %s " % job_file)
+                        self.system(
+                            cmd, comment="submitting job %s" % job_file)
+                        output_file = "%s/job.submit.out" % os.path.dirname(
+                            job_file)
+                        error_file = "%s/job.submit.err" % os.path.dirname(
+                            job_file)
+                        if os.path.exists(error_file):
+                            if os.path.getsize(error_file) > 0:
+                                print("\n\tError... something went wrong when submitting job %s " % job_file)
+                                print("\n           here's the error file just after submission : \n\t\t%s\n" % error_file)
+                                print("\t\tERR> " + \
+                                    "ERR> \t\t".join(
+                                        open(error_file, "r").readlines()))
+                                print("           here's the submission command: \n\t\t%s\n" % cmd)
+                                job_script_content = open(
+                                    job_file, 'r').readlines()
+                                print("\n           here's the job_script        : ")
+                                for chunk in splitList(job_script_content, 12):
+                                    print("".join(chunk)[:-1])
+                                    input_var = raw_input(
+                                        " [ hit only return to continue or any other input to stop]")
+                                    if not(input_var == ""):
+                                        print("...")
+                                        break
+                                sys.exit(1)
+                        f = open(output_file, "r").readline()[:-1].split(" ")[-1]
+                        self.KTF_JOB_ID[os.path.abspath(os.path.dirname(job_file))] = f
+                        self.log_debug("[run] job_id" + f,3,trace="PARAMS")
 
+                    else:
+                        print("\tshould launch job %s (if --launch added) " % job_file)
+                    #print(cmd
                 else:
-                    print("\tshould launch job %s (if --launch added) " % job_file)
-                #print(cmd
-            else:
-                print("\t\tWarning... no job file found for machine %s in test directory %s " % \
-                      (self.MACHINE, dest_directory))
-            print
-            self.save_workspace()
+                    print("\t\tWarning... no job file found for machine %s in test directory %s " % \
+                        (self.MACHINE, dest_directory))
+                print
+                self.save_workspace()
 
     #########################################################################
     # os.system wrapped to enable Trace if needed
