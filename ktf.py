@@ -40,15 +40,15 @@ class ktf(engine):
         self.KTF_JOB_ID = {}
         self.KTF_JOB_DIR = {}
         self.KTF_JOB_STATUS = {}
-        self.timing_results = {}
-        self.timing_results["procs"] = []
-        self.timing_results["cases"] = []
-        self.timing_results["runs"] = []
+        self.ktf_timing_results = {}
+        self.ktf_timing_results["procs"] = []
+        self.ktf_timing_results["cases"] = []
+        self.ktf_timing_results["runs"] = []
         self.CASE_LENGTH_MAX = 0
 
         if os.path.exists(self.WORKSPACE_FILE):
             self.load_workspace()
-            #print(self.timing_results["runs"])
+            #print(self.ktf_timing_results["runs"])
         self.shortcuts = 'abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789'
 
 
@@ -225,7 +225,7 @@ class ktf(engine):
         f_workspace = open(workspace_file+".new", "wb")
         pickle.dump(self.KTF_JOB_ID, f_workspace)
         pickle.dump(self.KTF_JOB_STATUS, f_workspace)
-        pickle.dump(self.timing_results, f_workspace)
+        pickle.dump(self.ktf_timing_results, f_workspace)
         f_workspace.close()
         if os.path.exists(workspace_file):
             os.rename(workspace_file, workspace_file+".old")
@@ -242,11 +242,11 @@ class ktf(engine):
         f_workspace = open(self.WORKSPACE_FILE, "rb")
         self.KTF_JOB_ID = pickle.load(f_workspace)
         self.KTF_JOB_STATUS = pickle.load(f_workspace)
-        self.timing_results = pickle.load(f_workspace)
+        self.ktf_timing_results = pickle.load(f_workspace)
         f_workspace.close()
 
         print("xxxxxxxxxxxxx")
-        self.log_debug('self.KTF_JOB_ID :' + pprint.pformat(self.KTF_JOB), 2, trace='workspace')
+        # self.log_debug('self.KTF_JOB_ID :' + pprint.pformat(self.KTF_JOB_ID), 2, trace='workspace')
         for job_dir in self.KTF_JOB_ID.keys():
             job_id = self.KTF_JOB_ID[job_dir]
             self.KTF_JOB_DIR[job_id] = job_dir
@@ -286,8 +286,8 @@ class ktf(engine):
         self.user_message(msg_debug="\n\tbalises  = %s\n " % str(balises))
 
         for root, dirs, files in os.walk(directory):
-            self.log_debug("dirs="+" ".join(dirs))
-            self.log_debug("files="+" ".join(files))
+            self.log_debug("dirs="+" ".join(dirs), 3, trace="TEMPLATE")
+            self.log_debug("files="+" ".join(files), 3, trace="TEMPLATE")
 
             for name in files:
                 if ".template" in name and os.path.exists(os.path.join(root, name)):
@@ -334,9 +334,9 @@ class ktf(engine):
             self.log_info(
                 'Oops some status jobs are missing... let me try to reconstruct them...')
             self.log_debug('%s dirs and %s jobs to scan ' %
-                           (len(DIRS), len(IDS)))
+                           (len(DIRS), len(IDS)), 3 , trace="STATUS")
             self.log_debug('%s dirs possibles... vs %s dirs in the box' % (
-                len(DIRS_CANDIDATES), len(DIRS)))
+                len(DIRS_CANDIDATES), len(DIRS)), 3 , trace="STATUS")
             for f in DIRS_CANDIDATES:
                 l = open(f, 'r').readline()[:-1]
                 job_id = l.split(" ")[-1]
@@ -346,7 +346,7 @@ class ktf(engine):
                 self.log_debug("DIRS: " + pprint.pformat(DIRS),3,trace='STATUS')
                 if not(d in DIRS.keys()):
                     self.log_debug(
-                        'adding j=/%s/ for %s ; l= >>%s<< ' % (job_id, d, l))
+                        'adding j=/%s/ for %s ; l= >>%s<< ' % (job_id, d, l), 3 , trace="STATUS")
                     if len(job_id):
                         self.KTF_JOB_DIR[job_id] = d
                         self.KTF_JOB_ID[d] = job_id
@@ -363,24 +363,25 @@ class ktf(engine):
             self.log_debug('status : /%s/ for job %s from dir >>%s<<' %
                            (status, j, DIRS[j]), 1)
             if status in ("CANCELLED", "COMPLETED", "FAILED", "TIMEOUT", 'NODE_FAIL', 'BOOT_FAIL', 'SPECIAL_EXIT', 'REJECTED'):
-                self.log_debug('--> not updating status', 1)
+                self.log_debug('--> not updating status', 1, trace="STATUS")
             else:
                 jobs_to_check.append(j)
         if len(jobs_to_check) == 0:
             return
 
         cmd = ["sacct", "-j", ",".join(jobs_to_check)]
-        self.log_debug('cmd so get new status : ///%s///' % " ".join(cmd))
+        self.log_debug('cmd so get new status : ///%s///' % " ".join(cmd), 1, trace="STATUS")
         try:
             output = subprocess.check_output(cmd)
+            output = output.decode('utf-8')
         except:
-            if self.DEBUG:
+            if self.args.debug > 0:
                 self.dump_exception(
                     '[get_current_job_status] subprocess with ' + " ".join(cmd))
             else:
                 status_error = True
             output = ""
-        self.log_debug("output:" + pprint.pformat(output),2,trace="CMD")
+        self.log_debug("output:" + pprint.pformat(output), 2, trace="CMD")
         for l in output.split("\n"):
             try:
                 p = re.compile("\s+")
@@ -392,13 +393,12 @@ class ktf(engine):
                     status = fields[-2]
                     if status in ('PENDING', 'RUNNING', 'SUSPENDED', 'COMPLETED', 'CANCELLED', 'CANCELLED+', 'FAILED', 'TIMEOUT',
                                   'NODE_FAIL', 'PREEMPTED', 'BOOT_FAIL', 'COMPLETING', 'CONFIGURING', 'RESIZING', 'SPECIAL_EXIT'):
-                        if self.DEBUG:
-                            print(status, j)
+                        self.log_debug("status: %s /  j : %s " % (status,j), 3, "STATUS")
                         if status[-1] == '+':
                             status = status[:-1]
                         self.KTF_JOB_STATUS[j] = self.KTF_JOB_STATUS[DIRS[j]] = status
             except:
-                if self.DEBUG:
+                if self.args.debug > 0:
                     self.dump_exception(
                         '[get_current_job_status] parse job_status \n\t with j=/%s/ \n\t with job_status=/%s/ ' % (j, l))
                 else:
@@ -463,19 +463,18 @@ class ktf(engine):
         if len(dirs):
             # if level == SCANNING_FROM :
             #  print("%s%d %s Availables: " % ("\t"*(level+1),len(dirs),ArboNames[level]))
-            if self.DEBUG > 3:
+            if self.args.debug > 0 > 3:
                 print(level, dirs)
             for d in ["job.submit.out"]:
                 if os.path.exists(path + "/" + d):
                     if os.path.isfile(path + "/" + d):
-                        if self.DEBUG:
-                            print("[list_jobs_and_get_time] candidate : %s " % (
-                                path+"/"+"job.submit.out"))
+                        self.log_debug("[list_jobs_and_get_time] candidate : %s " % (
+                                path+"/"+"job.submit.out"), 3, trace="SCAN")
                         # formatting the dirname
                         p = re.match(r"(.*tests_.*_......-.._.._..)/.*", path)
                         if p:
                             dir_match = p.group(1)
-                            self.log_debug('dir_match:>>%s<<', dir_match)
+                            self.log_debug('dir_match:>>%s<<' % dir_match,  3, trace="SCAN")
     #           else:
     #             dir_match = "??? (%s)" % path
 
@@ -486,8 +485,8 @@ class ktf(engine):
 
                         timing_result = self.get_timing(path)
 
-                        if self.DEBUG and not(dir_match in dir_already_printed.keys()):
-                            print("%s- %s " % ("\t"+"   "*(level), dir_match))
+                        if not(dir_match in dir_already_printed.keys()):
+                            self.log_debug("%s- %s " % ("\t"+"   "*(level), dir_match), 3, trace="SCAN")
                         dir_already_printed[dir_match] = False
                         case_match = path_new.replace(dir_match+"/", "")
                         case_match = case_match.replace("/job.submit.out", "")
@@ -508,22 +507,20 @@ class ktf(engine):
                                 proc_match = "0"
                         k = "%s.%s.%s" % (dir_match, proc_match, case_match)
 
-                        if not(k in self.timing_results.keys()):
-                            self.timing_results[k] = []
-                        if not(dir_match in self.timing_results["runs"]):
-                            self.timing_results["runs"].append(dir_match)
-                        if not(proc_match in self.timing_results["procs"]):
-                            self.timing_results["procs"].append(proc_match)
-                        if not(case_match in self.timing_results["cases"]):
-                            self.timing_results["cases"].append(case_match)
+                        if not(k in self.ktf_timing_results.keys()):
+                            self.ktf_timing_results[k] = []
+                        if not(dir_match in self.ktf_timing_results["runs"]):
+                            self.ktf_timing_results["runs"].append(dir_match)
+                        if not(proc_match in self.ktf_timing_results["procs"]):
+                            self.ktf_timing_results["procs"].append(proc_match)
+                        if not(case_match in self.ktf_timing_results["cases"]):
+                            self.ktf_timing_results["cases"].append(case_match)
                             self.CASE_LENGTH_MAX = max(
                                 self.CASE_LENGTH_MAX, len(case_match))
 
-                        self.timing_results[k] = timing_result
-                        if self.DEBUG:
-                            print("\t\t%10s s \t %5s %40s " % (
-                                timing_result, proc_match, case_match))
-                        else:
+                        self.ktf_timing_results[k] = timing_result
+                        self.log_debug("\t\t%10s s \t %5s %40s " % (timing_result, proc_match, case_match), 3, trace="SCAN")
+                        if self.args.debug==0:
                             print(".",end='')
                             sys.stdout.flush()
 
@@ -534,11 +531,11 @@ class ktf(engine):
                             if self.WHEN:
                                 if path_new.find(self.WHEN) < 0:
                                     self.log_debug(
-                                        'rejecting path >>%s<< because of filter applied' % path_new, 2)
+                                        'rejecting path >>%s<< because of filter applied' % path_new, 2, trace="SCAN")
                                     next
                                 else:
                                     self.log_debug(
-                                        'accepting path >>%s<< because of filter applied' % path_new, 1)
+                                        'accepting path >>%s<< because of filter applied' % path_new, 1, trace="SCAN")
                             self.scan_jobs_and_get_time(
                                 path_new, level+1, timing, dir_already_printed)
 
@@ -553,15 +550,15 @@ class ktf(engine):
         self.scan_jobs_and_get_time(path, level, timing, dir_already_printed)
 
         print('\n%s experiments availables : ' % len(
-            self.timing_results["runs"]))
-        chunks = splitList(self.timing_results["runs"], 5)
+            self.ktf_timing_results["runs"]))
+        chunks = splitList(self.ktf_timing_results["runs"], 5)
         for runs in chunks:
             for run in runs:
                 print("%12s" % run[-15:],end='')
             print
 
-        print('\n%s tests availables : ' % len(self.timing_results["cases"]))
-        chunks = splitList(self.timing_results["cases"], 5)
+        print('\n%s tests availables : ' % len(self.ktf_timing_results["cases"]))
+        chunks = splitList(self.ktf_timing_results["cases"], 5)
         for cases in chunks:
             for case in cases:
                 print("%12s" % case,end='')
@@ -587,11 +584,11 @@ class ktf(engine):
         nb_tests = 0
         total_time = {}
         blank = ""
-        self.timing_results["procs"].sort(key=int)
-        #print(self.timing_results["procs"])
+        self.ktf_timing_results["procs"].sort(key=int)
+        #print(self.ktf_timing_results["procs"])
 
         chunks = splitList(
-            self.timing_results["runs"], self.NB_COLUMNS_MAX, only=self.WHEN)
+            self.ktf_timing_results["runs"], self.NB_COLUMNS_MAX, only=self.WHEN)
 
         format_run = ("%%%ss" % self.CASE_LENGTH_MAX)
         line_sep = '-' * (4+self.NB_COLUMNS_MAX * 20 + self.CASE_LENGTH_MAX*2)
@@ -605,7 +602,7 @@ class ktf(engine):
             blank = " " * 20 * (self.NB_COLUMNS_MAX - len(runs))
 
             self.log_debug('runs=[%s], nb_column=%s' %
-                           (",".join(runs), nb_column), 2)
+                           (",".join(runs), nb_column), 2, trace="TIME")
             nb_column_start = nb_column
             nb_line = 0
 
@@ -616,7 +613,7 @@ class ktf(engine):
             header = header + '%s  # tests / Runs' % blank
 
             cases = splitList(
-                self.timing_results["cases"], 1000, only=self.WHAT)
+                self.ktf_timing_results["cases"], 1000, only=self.WHAT)
 
             if len(cases) == 0:
                 continue
@@ -625,12 +622,12 @@ class ktf(engine):
 
             for case in cases[0]:
                 nb_line += 1
-                for proc in self.timing_results["procs"]:
+                for proc in self.ktf_timing_results["procs"]:
                     k0 = "%s.%s" % (proc, case)
                     nb_runs = 0
                     for run in runs:
                         k = "%s.%s.%s" % (run, proc, case)
-                        if k in self.timing_results.keys():
+                        if k in self.ktf_timing_results.keys():
                             nb_runs += 1
                     if nb_runs:
                         nb_column = nb_column_start
@@ -638,8 +635,8 @@ class ktf(engine):
                         for run in runs:
                             nb_column += 1
                             k = "%s.%s.%s" % (run, proc, case)
-                            if k in self.timing_results.keys():
-                                t = self.timing_results[k]
+                            if k in self.ktf_timing_results.keys():
+                                t = self.ktf_timing_results[k]
                                 #print(case,nb_line-1,(self.shortcuts[nb_column-1],self.shortcuts[nb_line-1]))
                                 nb_possible_shortcuts = len(self.shortcuts)
                                 if nb_column <= nb_possible_shortcuts:
@@ -668,7 +665,8 @@ class ktf(engine):
                                     os.symlink("."+path, "R/%s" % shortcut)
                                 except:
                                     self.log_debug(
-                                        '\nZZZZZZZZZZZ symbolic link failed for ' + "ln -s ."+path + " R/%s" % shortcut)
+                                        '\nZZZZZZZZZZZ symbolic link failed for ' + "ln -s ."+path + " R/%s" % shortcut,
+                                        1, trace="TIME"  )
                                     status_error_links = True
                                 try:
                                     s = s + " %13s %4s" % (t, shortcut)
@@ -681,7 +679,7 @@ class ktf(engine):
                                     total_time[run] = 0
                                 if t > 0:
                                     try:
-                                        total_time[run] += self.timing_results[k]
+                                        total_time[run] += self.ktf_timing_results[k]
                                     except:
                                         pass
                             else:
@@ -697,7 +695,7 @@ class ktf(engine):
             print(s)
             print(line_sep)
             self.log_debug(
-                'at the end of the runs chunk nb_column=%s' % (nb_column), 2)
+                'at the end of the runs chunk nb_column=%s' % (nb_column), 2, trace="TIME")
 
         if status_error_links:
             self.log_info(
@@ -769,24 +767,21 @@ class ktf(engine):
                         "[get_timing] Exception type 2 on time read: >>%s<< " % to_date)
                     ellapsed_time = 'ERROR_2'
 
-                if self.DEBUG:
-                    print("[get_time] from_time=!%s! start_timing=!%s! from_date" % (
-                        from_time, start_timing[1]), from_date)
-                    print("[get_time]   to_time=!%s!   end_timing=!%s! to_date" % (
-                        to_time, end_timing[1]), to_date)
+                self.log_debug("[get_time] from_time=!%s! start_timing=!%s! from_date = %s" % (
+                    from_time, start_timing[1], from_date), 3, trace="SCAN")
+                self.log_debug("[get_time]   to_time=!%s!   end_timing=!%s! to_date = %s" % (
+                    to_time, end_timing[1], to_date), 3, trace="SCAN")
 
                 (to_hour, to_minute, to_second) = to_time.split(":")
                 ellapsed_time = ((int(to_day)*24.+int(to_hour))*60+int(to_minute))*60+int(to_second) \
                     - (((int(from_day)*24.+int(from_hour)) *
                         60+int(from_minute))*60+int(from_second))
-                if self.DEBUG:
-                    print(from_date, to_date, (from_month, from_day,
-                                               from_time), (to_month, to_day, to_time))
+                self.log_debug("from_date = %s, to_date=%s, (%s/%s/%s)  to (%s/%s/%s)" %
+                               (from_date, to_date, from_month, from_day,from_time, to_month, to_day, to_time), 3, trace="SCAN")
             else:
-                if self.DEBUG:
-                    print("[get_timing] Exception type 1")
-                    if self.DEBUG > 1:
-                        except_print()
+                self.log_debug("[get_timing] Exception type 1")
+                if self.args.debug > 1:
+                    except_print()
                 ellapsed_time = "NOGOOD"
         except:
             self.dump_exception("[get_timing] Exception type 2  ")
@@ -800,8 +795,7 @@ class ktf(engine):
     #########################################################################
 
     def my_timing(self, dir, ellapsed_time, status):
-        if self.DEBUG:
-            print(dir)
+        self.log_debug(dir,3)
         return ellapsed_time
 
     #########################################################################

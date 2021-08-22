@@ -458,6 +458,11 @@ class engine(object):
 
     def check_filter(self,trace):
         trace_to_search = ",%s," % trace
+        try:
+            a=self.args
+        except:
+            print("not yet")
+            return False
         for f in self.args.filter.split(','):
             if trace_to_search.find(",%s," % f) > -1:
                 return True
