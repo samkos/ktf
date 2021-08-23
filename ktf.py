@@ -31,7 +31,7 @@ ERROR = -1
 class ktf(engine):
 
     def __init__(self):
-        self.WORKSPACE_FILE = ".ktf.pickle"
+        self.KTF_WORKSPACE_FILE = ".ktf.pickle"
         self.check_python_version()
 
         self.MATRIX_FILE_TEMPLATE = ""
@@ -51,7 +51,7 @@ class ktf(engine):
         self.ktf_results_of_experiments_index = {}
         self.CASE_LENGTH_MAX = 0
 
-        if os.path.exists(self.WORKSPACE_FILE):
+        if os.path.exists(self.KTF_WORKSPACE_FILE):
             self.load_workspace()
             #print(self.ktf_timing_results["runs"])
         self.shortcuts = 'abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789'
@@ -228,7 +228,7 @@ class ktf(engine):
     def save_workspace(self):
 
         #print("saving variables to file "+workspace_file)
-        workspace_file = self.WORKSPACE_FILE
+        workspace_file = self.KTF_WORKSPACE_FILE
         f_workspace = open(workspace_file+".new", "wb")
         pickle.dump(self.KTF_JOB_ID, f_workspace)
         pickle.dump(self.KTF_JOB_STATUS, f_workspace)
@@ -246,7 +246,7 @@ class ktf(engine):
 
         #print("loading variables from file "+workspace_file)
 
-        f_workspace = open(self.WORKSPACE_FILE, "rb")
+        f_workspace = open(self.KTF_WORKSPACE_FILE, "rb")
         self.KTF_JOB_ID = pickle.load(f_workspace)
         self.KTF_JOB_STATUS = pickle.load(f_workspace)
         self.ktf_timing_results = pickle.load(f_workspace)
@@ -340,6 +340,8 @@ class ktf(engine):
             if d.find(self.WHAT)>-1:
                 DIRS_CANDIDATES = DIRS_CANDIDATES + [d]
         self.log_debug('DIRS_CANDIDATES:' + pprint.pformat(DIRS_CANDIDATES), 1, trace='STATUS')
+
+        
         
         if not(len(DIRS_CANDIDATES) == len(IDS)):
             self.log_info(
@@ -466,7 +468,7 @@ class ktf(engine):
         if self.WHEN and not(path == '.'):
             if path.find(self.WHEN) < 0:
                 self.log_debug(
-                    'rejecting path >>%s<< because of filter applied' % path, 2, trace="SCAN")
+                    'rejecting path >>%s<< because of filter applied' % path, 2, trace="FILTER")
                 return
 
         dirs = sorted(os.listdir(path))
@@ -542,11 +544,11 @@ class ktf(engine):
                             if self.WHEN:
                                 if path_new.find(self.WHEN) < 0:
                                     self.log_debug(
-                                        'rejecting path >>%s<< because of filter applied' % path_new, 2, trace="SCAN")
+                                        'rejecting path >>%s<< because of filter applied' % path_new, 2, trace="FILTER")
                                     next
                                 else:
                                     self.log_debug(
-                                        'accepting path >>%s<< because of filter applied' % path_new, 1, trace="SCAN")
+                                        'accepting path >>%s<< because of filter applied' % path_new, 1, trace="FILTER")
                             self.scan_jobs_and_get_time(
                                 path_new, level+1, timing, dir_already_printed)
         self.log_debug(

@@ -17,7 +17,7 @@
             "type": "python",
             "request": "launch",
             "program": "run_tests.py",
-            "args": ["--mon"],
+            "args": ["--mon", "--today"],
             "console": "integratedTerminal"
         },
         {
@@ -25,7 +25,7 @@
             "type": "python",
             "request": "launch",
             "program": "run_tests.py",
-            "args": ["--mon","-f","MYT,TIMER","--today"],
+            "args": ["--mon","-ddd", "--today"],
             "console": "integratedTerminal"
         },
         {

@@ -1,4 +1,4 @@
-#!/sw/xc40/python/2.7.9/cnl5.2_gnu4.9.3/bin/python
+#!/sw/xc40cle7/python/3.8.0/sles15_gnu8.3.0/bin/python
 from ktf import *
 import glob
 from env import *
