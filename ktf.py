@@ -40,6 +40,8 @@ class ktf(engine):
         self.KTF_JOB_ID = {}
         self.KTF_JOB_DIR = {}
         self.KTF_JOB_STATUS = {}
+        self.KTF_JOB_STAMP = {}
+        self.KTF_JOB_TIMINGS = {}
         self.ktf_timing_results = {}
         self.ktf_timing_results["procs"] = []
         self.ktf_timing_results["cases"] = []
@@ -212,6 +214,7 @@ class ktf(engine):
             self.get_ktf_status()
         elif self.MONITOR:
             self.list_jobs_and_get_time()
+            self.save_workspace()
         else:
             self.ALREADY_ACKNKOWLEDGE = False
             for nb_experiment in range(self.TIMES):
@@ -233,6 +236,8 @@ class ktf(engine):
         pickle.dump(self.KTF_JOB_ID, f_workspace)
         pickle.dump(self.KTF_JOB_STATUS, f_workspace)
         pickle.dump(self.ktf_timing_results, f_workspace)
+        pickle.dump(self.KTF_JOB_STAMP, f_workspace)
+        pickle.dump(self.KTF_JOB_TIMINGS, f_workspace)
         f_workspace.close()
         if os.path.exists(workspace_file):
             os.rename(workspace_file, workspace_file+".old")
@@ -250,6 +255,8 @@ class ktf(engine):
         self.KTF_JOB_ID = pickle.load(f_workspace)
         self.KTF_JOB_STATUS = pickle.load(f_workspace)
         self.ktf_timing_results = pickle.load(f_workspace)
+        self.KTF_JOB_STAMP = pickle.load(f_workspace)
+        self.KTF_JOB_TIMINGS = pickle.load(f_workspace)
         f_workspace.close()
 
         # self.log_debug('self.KTF_JOB_ID :' + pprint.pformat(self.KTF_JOB_ID), 2, trace='workspace')
@@ -337,12 +344,10 @@ class ktf(engine):
         self.log_debug('DIRS_CANDIDATES_UNFILTERED:' + pprint.pformat(DIRS_CANDIDATES_UNFILTERED), 1, trace='STATUS')
         DIRS_CANDIDATES = []
         for d in DIRS_CANDIDATES_UNFILTERED:
-            if d.find(self.WHAT)>-1:
+            if d.find(self.WHAT)>-1 and d.find(self.WHEN)>-1:
                 DIRS_CANDIDATES = DIRS_CANDIDATES + [d]
-        self.log_debug('DIRS_CANDIDATES:' + pprint.pformat(DIRS_CANDIDATES), 1, trace='STATUS')
+        self.log_debug('DIRS_CANDIDATES:' + pprint.pformat(DIRS_CANDIDATES), 1, trace='STATUS,SCAN')
 
-        
-        
         if not(len(DIRS_CANDIDATES) == len(IDS)):
             self.log_info(
                 'Oops some status jobs are missing... let me try to reconstruct them...')
@@ -374,9 +379,9 @@ class ktf(engine):
                 next
             status = self.job_status(j)
             self.log_debug('status : /%s/ for job %s from dir >>%s<<' %
-                           (status, j, DIRS[j]), 1)
+                           (status, j, DIRS[j]), 1, trace="STATUS")
             if status in ("CANCELLED", "COMPLETED", "FAILED", "TIMEOUT", 'NODE_FAIL', 'BOOT_FAIL', 'SPECIAL_EXIT', 'REJECTED'):
-                self.log_debug('--> not updating status', 1, trace="STATUS")
+                self.log_debug('--> not updating status' , 1, trace="STATUS")
             else:
                 jobs_to_check.append(j)
         if len(jobs_to_check) == 0:
@@ -495,7 +500,8 @@ class ktf(engine):
 
                         if self.WHEN and path_new.find(self.WHEN) < 0:
                             continue
-
+                        
+                        
                         timing_result = self.get_timing(path)
 
                         if not(dir_match in dir_already_printed.keys()):
@@ -552,7 +558,7 @@ class ktf(engine):
                             self.scan_jobs_and_get_time(
                                 path_new, level+1, timing, dir_already_printed)
         self.log_debug(
-            "[list_jobs_and_get_time] end of scanning %s for timings=%s" % (path, timing), 2)
+            "[list_jobs_and_get_time] end of scanning %s for timings=%s" % (path, timing), 2, trace="SCAN")
 
     #########################################################################
     # display ellapsed time and preparing the linked directory
@@ -734,12 +740,31 @@ class ktf(engine):
             self.log_debug("No job.out found for %s" % path,2,trace='TIMER')
             return "None/"+status  # [:2]
 
+        job_out = path + "/job.out"
+        job_out_size = os.path.getsize(job_out) # size in bytes
+        job_out_ctime = os.path.getmtime(job_out) # time of last metadata change; it's a bit OS specific.
+        self.log_debug("job_out_ctime=%s job_out_size=%s" % \
+                       (job_out_ctime, job_out_size), 2, trace='STAMP')
+
+        job_err_size = job_err_ctime = 0
         if os.path.exists(path+"/job.err"):
             if os.path.getsize(path+"/job.err") > 0:
+                job_err = path + "/job.err"
+                job_err_size = os.path.getsize(job_err) # size in bytes
+                job_err_ctime = os.path.getmtime(job_err) # time of last metadata change; it's a bit OS specific.
+                self.log_debug("job_err_ctime=%s job_err_size=%s" % \
+                       (job_err_ctime, job_err_size), 2, trace='STAMP')
                 status = status+"!"
             else:
                 status = status+" "
-                # return "Error/"+status# [:2]
+                # return *Error*/+status# [:2]
+
+        global_stamp = "job.out-%s-%s:job.err-%s-%s" % (job_out_size,job_out_ctime,job_err_size,job_err_ctime)
+        if path in self.KTF_JOB_STAMP.keys():
+          if global_stamp == self.KTF_JOB_STAMP[path]:
+              self.log_debug("returning already saved value for path=%s" % path, 2, trace="STAMP")
+              return self.KTF_JOB_TIMINGS[path]
+        self.KTF_JOB_STAMP[path] = global_stamp
 
         fic = open(path+"/job.out")
         t = "__NEWLINE__".join(fic.readlines())
@@ -753,7 +778,7 @@ class ktf(engine):
             start_timing = t.split("======== start ==============")
             self.log_debug("start_timing %s" % start_timing, 3)
             if len(start_timing) < 2:
-                return self.my_timing(path,"NOST",status)
+                return self.my_timing_and_save(path,"NOST",status)
             from_date = start_timing[1].replace(
                 "__NEWLINE__", "").replace("\n", "").split(" ")
             (from_month, from_day, from_time) = (
@@ -770,7 +795,7 @@ class ktf(engine):
                 ellapsed_time = ((int(now.day)*24.+int(now.hour))*60+int(now.minute))*60+int(now.second) \
                     - (((int(from_day)*24.+int(from_hour)) *
                         60+int(from_minute))*60+int(from_second))
-                return self.my_timing(path,"!%d" % ellapsed_time, status)
+                return self.my_timing_and_save(path,"!%d" % ellapsed_time, status)
 
             from_date = to_date = "None"
 
@@ -806,11 +831,16 @@ class ktf(engine):
             ellapsed_time = 'ERROR_2'
         # if isinstance(ellapsed_time, basestring):
         #     return ellapsed_time
-        return self.my_timing(path, ellapsed_time, status)
+        return self.my_timing_and_save(path, ellapsed_time, status)
 
     #########################################################################
     # user defined routine to be overloaded to define user's own timing
     #########################################################################
+
+    def my_timing_and_save(self, path, ellapsed_time, status):
+        my_timing = self.my_timing(path, ellapsed_time, status)
+        self.KTF_JOB_TIMINGS[path] = my_timing
+        return my_timing
 
     def my_timing(self, dir, ellapsed_time, status):
         self.log_debug(dir,3)
