@@ -374,8 +374,9 @@ class ktf(engine):
                         self.KTF_JOB_STATUS[d] = 'REJECTED'
 
         jobs_to_check = list()
+
         for j in DIRS.keys():
-            if j.find(self.WHAT)==-1:
+            if ("%s"%j).find(self.WHAT)==-1:
                 next
             status = self.job_status(j)
             self.log_debug('status : /%s/ for job %s from dir >>%s<<' %
