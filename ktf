@@ -2,9 +2,9 @@
 
 if [ -a ./run_tests.py ]
 then
-   #echo python ./run_tests.py $*
-   python ./run_tests.py $*
+   #echo python3 ./run_tests.py $*
+   python3 ./run_tests.py $*
 else
-   #echo python $KTF_PATH/run_tests.py $*
-   python $KTF_PATH/run_tests.py $*
+   #echo python3 $KTF_PATH/run_tests.py $*
+   python3 $KTF_PATH/run_tests.py $*
 fi

@@ -949,7 +949,7 @@ class ktf(engine):
                 sys.exit(0)
             # askine to the user if he is ok or not
             if not(self.ALREADY_ACKNKOWLEDGE):
-                input_var = raw_input("Is this correct ? (yes/no) ")
+                input_var = input("Is this correct ? (yes/no) ")
                 if not(input_var == "yes"):
                     print("ABORTING: No clear confirmation... giving up!")
                     sys.exit(1)
@@ -1096,7 +1096,7 @@ class ktf(engine):
                                 print("\n           here's the job_script        : ")
                                 for chunk in splitList(job_script_content, 12):
                                     print("".join(chunk)[:-1])
-                                    input_var = raw_input(
+                                    input_var = input(
                                         " [ hit only return to continue or any other input to stop]")
                                     if not(input_var == ""):
                                         print("...")

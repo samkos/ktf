@@ -106,9 +106,10 @@ def get_machine():
         EXCLUSIVE = False
         cores_per_node = 8
     else:
-        machine = "localhost"
+        machine = "aws"
+        SUBMIT_COMMAND = 'sbatch'
+        EXCLUSIVE = True
         tmp_directory = "/tmp"
-    # print 'Mail command:' + MAIL_COMMAND
     return machine, tmp_directory, cores_per_node
 
 
