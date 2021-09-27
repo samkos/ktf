@@ -106,6 +106,8 @@ class ktf(engine):
                                  help=self.activate_option('build','build experiments without launching them'))
         self.parser.add_argument("-s", "--status", action="store_true",
                                  help=self.activate_option('status','show current status of experiments'))
+        self.parser.add_argument("-f", "--force-update", action="store_true",
+                                 help=self.activate_option('status','force update of results'))
         self.parser.add_argument("-e", "--exp", action="store_true",
                                  help=self.activate_option('exp','list all available experiments'))
         self.parser.add_argument("-w", "--wide", action="store_true",
@@ -181,6 +183,7 @@ class ktf(engine):
         self.STATUS = self.args.status
         self.FAKE = self.args.fake
         self.ALREADY_ACKNKOWLEDGE = self.args.yes
+        self.FORCE_UPDATE = self.args.force_update
         
         if self.args.today:
             self.WHEN = datetime.datetime.now().strftime("%y%m%d-")
@@ -762,7 +765,7 @@ class ktf(engine):
 
         global_stamp = "job.out-%s-%s:job.err-%s-%s" % (job_out_size,job_out_ctime,job_err_size,job_err_ctime)
         if path in self.KTF_JOB_STAMP.keys():
-          if global_stamp == self.KTF_JOB_STAMP[path]:
+          if not(self.FORCE_UPDATE) and global_stamp == self.KTF_JOB_STAMP[path]:
               self.log_debug("returning already saved value for path=%s" % path, 2, trace="STAMP")
               return self.KTF_JOB_TIMINGS[path]
         self.KTF_JOB_STAMP[path] = global_stamp
