@@ -62,6 +62,9 @@ class ktf(engine):
         self.NB_COLUMNS_MAX = 3
         
         engine.__init__(self, "ktf", "0.7")
+
+        self.my_init()
+        
         self.start()
 
     #########################################################################
@@ -656,7 +659,7 @@ class ktf(engine):
                             nb_runs += 1
                     if nb_runs:
                         nb_column = nb_column_start
-                        s = format_run % case
+                        s = format_run % self.my_format_output(case,"case")
                         for run in runs:
                             nb_column += 1
                             k = "%s.%s.%s" % (run, proc, case)
@@ -711,7 +714,7 @@ class ktf(engine):
                                     pass
                             else:
                                 s = s + "%12s       " % "-"
-                        s = s + "%s%3s / %s" % (blank, nb_runs, case)
+                        s = s + "%s%3s / %s" % (blank, nb_runs, self.my_format_output(case,"case"))
                         print(s)
             s = format_run % "total time"
             for run in runs:
@@ -841,6 +844,9 @@ class ktf(engine):
     # user defined routine to be overloaded to define user's own timing
     #########################################################################
 
+    def my_init(self):
+        return
+
     def my_timing_and_save(self, path, ellapsed_time, status):
         my_timing = self.my_timing(path, ellapsed_time, status)
         self.KTF_JOB_TIMINGS[path] = my_timing
@@ -849,6 +855,9 @@ class ktf(engine):
     def my_timing(self, dir, ellapsed_time, status):
         self.log_debug(dir,3)
         return ellapsed_time
+
+    def my_format_output(self,value,what):
+        return value
 
     #########################################################################
     # clean a line from the output
@@ -1121,7 +1130,7 @@ class ktf(engine):
 
 
     #########################################################################
-    # helper fu
+    # helper function
     #########################################################################
 
     def add_experiment_to_list(self,tag):
