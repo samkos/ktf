@@ -948,13 +948,13 @@ class ktf(engine):
                         if nb_case == 1:
                             for k in self.direct_tag.keys():
                                 print("%6s" % k,end='')
-                            print
+                            print()
 
                         if not(self.NB) or self.NB == nb_case:
                             print("%3d: " % (nb_case),end='')
                             for k in line.split(" "):
                                 print("%6s " % k[:20],end='')
-                            print
+                            print()
                         nb_case = nb_case + 1
 
             # if --exp exiting here
