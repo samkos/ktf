@@ -1064,13 +1064,25 @@ class ktf(engine):
                 (dest_directory, dest_directory,
                  root_directory, tag["Experiment"])
 
+            if "Arch" in tag.keys():
+                arch  = tag["Arch"]
+            else:
+                arch = "unkown"
+
             # copying contents of the tests/common and tests/<Experiment>/common directory into the directory where the job will take place
-            for d in ['tests/common', 'tests/%s/../common' % tag["Experiment"]]:
+            for d in ['tests/common', 'tests/%s/../common' % tag["Experiment"], 'tests/common_%s' % arch, 'tests/%s/../common_%s' % (tag["Experiment"],arch)]:
                 common_dir = '%s/%s' % (root_directory, d)
                 if os.path.exists(common_dir):
                     cmd = cmd + \
                         "\ntar fc - -C %s . | tar xvf - > /dev/null  " % (
                             common_dir)
+
+            # linking contents of the tests/common_links and tests/<Experiment>/common_links directory into the directory where the job will take place
+            for d in ['tests/common_links', 'tests/%s/../common_links' % tag["Experiment"], 'tests/common_%s_links' % arch, 'tests/%s/../common_%s_links' % (tag["Experiment"],arch)]:
+                common_dir = '%s/%s' % (root_directory, d)
+                if os.path.exists(common_dir):
+                    cmd = cmd + \
+                        "\nln -s  %s/* .  " % (common_dir)
 
             comment = "\tcreating test directory %s for %s and populating it from %s : " % (
                 dest_directory, self.MACHINE, common_dir)
