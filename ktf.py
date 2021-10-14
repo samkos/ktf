@@ -633,6 +633,9 @@ class ktf(engine):
         print(line_sep)
 
         nb_column = 0
+
+        self.output_initialize()
+
         for runs in chunks:
 
             blank = " " * 20 * (self.NB_COLUMNS_MAX - len(runs))
@@ -668,6 +671,7 @@ class ktf(engine):
                     if nb_runs:
                         nb_column = nb_column_start
                         s = format_run % self.my_format_output(case,"case")
+                        self.output_add_field(s)
                         non_null_run = False
                         for run in runs:
                             nb_column += 1
@@ -708,7 +712,9 @@ class ktf(engine):
                                         1, trace="TIME"  )
                                     status_error_links = True
                                 try:
-                                    s = s + " %13s %4s" % (t, shortcut)
+                                    value = " %13s %4s" % (t, shortcut)
+                                    s = s + value
+                                    self.output_add_field(value)
                                 except:
                                     print('range error ', nb_line-1, nb_column-1)
                                     sys.exit(1)
@@ -725,9 +731,11 @@ class ktf(engine):
                                     pass
                             else:
                                 s = s + "%12s       " % "-"
+                                self.output_add_field("-")
                         s = s + "%s%3s / %s" % (blank, nb_runs, self.my_format_output(case,"case"))
                         if non_null_run or not(self.args.compact):
                             print(s)
+                            self.output_add_newline()
             s = format_run % "total time"
             for run in runs:
                 if not(run in total_time.keys()):
@@ -743,6 +751,40 @@ class ktf(engine):
             self.log_info(
                 '!WARNING! Error encountered setting symbolic links in R/ directory, run with --debug to know more', 1)
 
+        self.output_dump()
+
+    #########################################################################
+    # output management
+    #########################################################################
+
+    def output_initialize(self):
+        self.output = {}
+        self.output_current_line = self.output_current_column = 0
+        self.output_column_max_width = {}
+        for i in range(100):
+            self.output_column_max_width[i] = -1
+        self.output_column_max = -1
+        
+    def output_add_field(self,s):
+        self.output[self.output_current_line,self.output_current_column] = s
+        self.output_column_max_width[self.output_current_column] = max(self.output_column_max_width[self.output_current_column], len(s))
+        self.output_column_max = max(self.output_column_max, self.output_current_column)
+        self.output_current_column += 1
+    
+    def output_add_newline(self):
+        self.output_current_column = 0
+        self.output_current_line += 1
+
+    def output_dump(self):
+
+        format = {}
+        for column in range(self.output_column_max):
+            format[column] = "%%ds " % self.output_column_max_width[column]
+        for line in range(self.output_current_line):
+            for column in range(self.output_column_max):
+                print( format[column] % self.output[line,column], end="")
+            print("")
+        
     #########################################################################
     # calculation of ellapsed time based on values dumped in job.out
     #########################################################################
