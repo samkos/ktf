@@ -646,10 +646,15 @@ class ktf(engine):
             nb_line = 0
 
             header = format_run % "Runs"
-
+            self.output_add_field("Runs")
+            
             for run in runs:
                 header = header + " %19s" % run[-15:]
+                self.output_add_field(run[-15:])
             header = header + '%s  # tests / Runs' % blank
+            self.output_add_field("# tests / Runs")
+            self.output_add_field("xx")
+            self.output_add_newline()
 
             cases = splitList(
                 self.ktf_timing_results["cases"], 1000, only=self.WHAT)
@@ -732,20 +737,30 @@ class ktf(engine):
                             else:
                                 s = s + "%12s       " % "-"
                                 self.output_add_field("-")
-                        s = s + "%s%3s / %s" % (blank, nb_runs, self.my_format_output(case,"case"))
+                        test_summary = "%s / %3s" % (self.my_format_output(case,"case"),nb_runs)
+                        s = s + test_summary
+                        self.output_add_field(test_summary)
                         if non_null_run or not(self.args.compact):
                             print(s)
+
                             self.output_add_newline()
             s = format_run % "total time"
+            self.output_add_field("total time")
             for run in runs:
                 if not(run in total_time.keys()):
                     total_time[run] = 0
                 s = s + " %18s " % total_time[run]
+                self.output_add_field("%18s" % total_time[run])
             s = s + "%s%3s" % (blank, nb_tests) + ' tests in total'
+            self.output_add_field("%s%3s" % (blank, nb_tests) + ' tests in total')
+            
             print(s)
+            self.output_add_newline()
+            
             print(line_sep)
             self.log_debug(
                 'at the end of the runs chunk nb_column=%s' % (nb_column), 2, trace="TIME")
+            
 
         if status_error_links:
             self.log_info(
@@ -767,7 +782,7 @@ class ktf(engine):
         
     def output_add_field(self,s):
         self.output[self.output_current_line,self.output_current_column] = s
-        self.output_column_max_width[self.output_current_column] = max(self.output_column_max_width[self.output_current_column], len(s))
+        self.output_column_max_width[self.output_current_column] = max(self.output_column_max_width[self.output_current_column], len(str(s)))
         self.output_column_max = max(self.output_column_max, self.output_current_column)
         self.output_current_column += 1
     
@@ -779,11 +794,11 @@ class ktf(engine):
 
         format = {}
         for column in range(self.output_column_max):
-            format[column] = "%%ds " % self.output_column_max_width[column]
+            format[column] = "|%%%ds " % self.output_column_max_width[column]
         for line in range(self.output_current_line):
             for column in range(self.output_column_max):
                 print( format[column] % self.output[line,column], end="")
-            print("")
+            print("|")
         
     #########################################################################
     # calculation of ellapsed time based on values dumped in job.out
