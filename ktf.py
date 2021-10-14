@@ -56,7 +56,13 @@ class ktf(engine):
         if os.path.exists(self.KTF_WORKSPACE_FILE):
             self.load_workspace()
             #print(self.ktf_timing_results["runs"])
-        self.shortcuts = 'abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789'
+        letters = [ l for l in 'abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789' ]
+        shortcuts = letters
+        for l in letters[:10]:
+            x = [ l+x for x in letters ]
+            shortcuts = shortcuts + x
+
+        self.shortcuts = shortcuts 
 
 
         self.NB_COLUMNS_MAX = 3
@@ -115,6 +121,8 @@ class ktf(engine):
                                  help=self.activate_option('exp','list all available experiments'))
         self.parser.add_argument("-w", "--wide", action="store_true",
                                  help=self.activate_option('wide','format results for a wide screen'))
+        self.parser.add_argument("-C", "--compact", action="store_true",
+                                 help=self.activate_option('wide','format results in a compact format'))
 
         self.parser.add_argument("-c", "--case-file", type=str, default= "./%s_cases.ktf" % self.MACHINE,
                                  help=self.activate_option('case-file','name of the case file'))
@@ -660,11 +668,14 @@ class ktf(engine):
                     if nb_runs:
                         nb_column = nb_column_start
                         s = format_run % self.my_format_output(case,"case")
+                        non_null_run = False
                         for run in runs:
                             nb_column += 1
                             k = "%s.%s.%s" % (run, proc, case)
                             if k in self.ktf_timing_results.keys():
                                 t = self.ktf_timing_results[k]
+                                if  len(t)>0 and str(t).find("None")==-1 and str(t).find("NO RESULTS")==-1:
+                                    non_null_run = True
                                 #print(case,nb_line-1,(self.shortcuts[nb_column-1],self.shortcuts[nb_line-1]))
                                 nb_possible_shortcuts = len(self.shortcuts)
                                 if nb_column <= nb_possible_shortcuts:
@@ -715,7 +726,8 @@ class ktf(engine):
                             else:
                                 s = s + "%12s       " % "-"
                         s = s + "%s%3s / %s" % (blank, nb_runs, self.my_format_output(case,"case"))
-                        print(s)
+                        if non_null_run or not(self.args.compact):
+                            print(s)
             s = format_run % "total time"
             for run in runs:
                 if not(run in total_time.keys()):
