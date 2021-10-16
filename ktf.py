@@ -634,9 +634,9 @@ class ktf(engine):
 
         nb_column = 0
 
-        self.output_initialize()
-
         for runs in chunks:
+
+            self.output_initialize()
 
             blank = " " * 20 * (self.NB_COLUMNS_MAX - len(runs))
 
@@ -754,6 +754,7 @@ class ktf(engine):
                 s = s + " %18s " % total_time[run]
                 self.output_add_field("%18s" % total_time[run])
             s = s + "%s%3s" % (blank, nb_tests) + ' tests in total'
+            self.output_add_newline()
             self.output_add_field("%s%3s" % (blank, nb_tests) + ' tests in total')
             self.log_debug(s,4,trace="OUTPUT")
             self.output_add_newline()
@@ -762,12 +763,12 @@ class ktf(engine):
             self.log_debug(
                 'at the end of the runs chunk nb_column=%s' % (nb_column), 2, trace="TIME")
             
-
+            self.output_dump()
+            
         if status_error_links:
             self.log_info(
                 '!WARNING! Error encountered setting symbolic links in R/ directory, run with --debug to know more', 1)
 
-        self.output_dump()
 
     #########################################################################
     # output management
@@ -794,16 +795,25 @@ class ktf(engine):
     def output_dump(self):
 
         format = {}
+        total_line_length = 0
         for column in range(self.output_column_max):
-            format[column] = "|%%%ds " % self.output_column_max_width[column]
+            column_width = self.output_column_max_width[column]
+            format[column] = "|%%%ds " % column_width
+            total_line_length += column_width+2
         print("")
+        total_line_length += 1
+        sep = "-" * total_line_length
+        print(sep)
         for line in range(self.output_current_line):
+            if line==1 or line==(self.output_current_line-1):
+                print(sep)
             for column in range(self.output_column_max):
                 try:
                     print( format[column] % self.output[line,column], end="")
                 except:
-                    print( format[column] % "??(%s,%s)" % (line,column), end="")
+                    print( format[column] % "??(%s,%s)" % (line,column), end=" " )
             print("|")
+        print(sep)
         
     #########################################################################
     # calculation of ellapsed time based on values dumped in job.out
