@@ -76,7 +76,7 @@ COPYRIGHT
 SEE ALSO
        A  comprehensive  presentation  of KTF has been given by Samuel Kortas during the KSL Workshop entitled 'Boost your effi-
        ciency when dealing with multiple jobs on the Cray XC40 supercomputer Shaheen II' held at KAUST On Sunday June 5th  2016.
-       The   workshop   slides   can  be  freely  downloaded  from  <https://www.hpc.kaust.edu.sa/sites/default/files/files/pub-
-       lic/many_jobs.pdf>
+       The   workshop   slides   can  be  freely  downloaded  from
+       <https://www.hpc.kaust.edu.sa/sites/default/files/files/public/many_jobs.pdf>
 
  
