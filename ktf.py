@@ -208,6 +208,20 @@ class ktf(engine):
         if self.args.wide:
                 self.NB_COLUMNS_MAX = 9
 
+        filter = "//--%s--//--%s--//" % (self.WHEN,self.WHAT)
+        # print(self.KTF_JOB_TIMINGS)
+        key = "--filter--"
+        if not(key in self.KTF_JOB_TIMINGS.keys()):
+               self.KTF_JOB_TIMINGS["--filter--"]=filter
+               self.FORCE_UPDATE = True
+               print("forcing update")
+        elif not(self.KTF_JOB_TIMINGS["--filter--"]==filter):
+               self.KTF_JOB_TIMINGS["--filter--"]==filter
+               self.FORCE_UPDATE = True
+               print("forcing update")
+            
+        # self.KTF_JOB_TIMINGS[path]
+
     #########################################################################
     # main work
     #########################################################################
