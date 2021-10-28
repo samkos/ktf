@@ -771,8 +771,8 @@ class ktf(engine):
             if not(len(self.all_results_columns)) or self.DETAIL:
                 self.output_dump()
             
-            if len(self.all_results_columns):
-                self.results_dump()
+        if len(self.all_results_columns):
+            self.results_dump()
                             
 
                 
