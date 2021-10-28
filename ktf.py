@@ -850,8 +850,14 @@ class ktf(engine):
         for l in self.all_results_lines:
             self.output_add_field(l)
             for c in self.all_results_columns:
-                self.output_add_field(self.all_results[l,c])
-                self.test_per_column[c] += 1
+                try:
+                    v = self.all_results[l,c]
+                    self.test_per_column[c] += 1
+                except:
+                    v = "-  "
+                self.output_add_field(v)
+                
+
             self.output_add_field("xx")
             self.output_add_newline()
 
