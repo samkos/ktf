@@ -847,7 +847,9 @@ class ktf(engine):
             self.output_add_field(c)
             self.test_per_column[c] = 0
         self.output_add_newline()
-        for l in self.all_results_lines:
+        self.all_results_lines_keys = [ l for l in self.all_results_lines]
+        self.all_results_lines_keys.sort()
+        for l in self.all_results_lines_keys:
             self.output_add_field(l)
             for c in self.all_results_columns:
                 try:
