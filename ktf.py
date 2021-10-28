@@ -115,6 +115,8 @@ class ktf(engine):
                                  help=self.activate_option('build','build experiments without launching them'))
         self.parser.add_argument("-s", "--status", action="store_true",
                                  help=self.activate_option('status','show current status of experiments'))
+        self.parser.add_argument("--detail", action="store_true",
+                                 help=self.activate_option('detail','show detailed output of experiments per campaign'))
         self.parser.add_argument("-f", "--force-update", action="store_true",
                                  help=self.activate_option('status','force update of results'))
         self.parser.add_argument("-e", "--exp", action="store_true",
@@ -195,6 +197,7 @@ class ktf(engine):
         self.FAKE = self.args.fake
         self.ALREADY_ACKNKOWLEDGE = self.args.yes
         self.FORCE_UPDATE = self.args.force_update
+        self.DETAIL = self.args.detail
         
         if self.args.today:
             self.WHEN = datetime.datetime.now().strftime("%y%m%d-")
@@ -607,6 +610,8 @@ class ktf(engine):
     def list_jobs_and_get_time(self, path=".", level=0, timing=False,
                                dir_already_printed={}):
 
+        self.results_initialize()
+
         status_error_links = False
 
         self.get_current_jobs_status()
@@ -763,8 +768,14 @@ class ktf(engine):
             self.log_debug(
                 'at the end of the runs chunk nb_column=%s' % (nb_column), 2, trace="TIME")
             
-            self.output_dump()
+            if not(len(self.all_results_columns)) or self.DETAIL:
+                self.output_dump()
             
+            if len(self.all_results_columns):
+                self.results_dump()
+                            
+
+                
         if status_error_links:
             self.log_info(
                 '!WARNING! Error encountered setting symbolic links in R/ directory, run with --debug to know more', 1)
@@ -814,7 +825,43 @@ class ktf(engine):
                     print( format[column] % "??(%s,%s)" % (line,column), end=" " )
             print("|")
         print(sep)
-        
+
+
+    def results_initialize(self):
+        self.all_results = {}
+        self.all_results_columns = {}
+        self.all_results_lines = {}
+
+    def results_add(self, line, column, value):
+        if line.find(self.WHAT)==-1 and line.find(self.WHEN)==-1 and column.find(self.WHAT)==-1 and column.find(self.WHEN)==-1:
+            return
+        self.all_results_lines[line] = 1
+        self.all_results_columns[column] = 1
+        self.all_results[line,column] = value
+
+    def results_dump(self):
+        self.output_initialize()
+        self.output_add_field(" ")
+        self.test_per_column = {}
+        for c in self.all_results_columns:
+            self.output_add_field(c)
+            self.test_per_column[c] = 0
+        self.output_add_newline()
+        for l in self.all_results_lines:
+            self.output_add_field(l)
+            for c in self.all_results_columns:
+                self.output_add_field(self.all_results[l,c])
+                self.test_per_column[c] += 1
+            self.output_add_field("xx")
+            self.output_add_newline()
+
+        self.output_add_field("%d tests" % sum([self.test_per_column[c] for c in self.all_results_columns]))
+        for c in self.all_results_columns:
+            self.output_add_field(self.test_per_column[c])
+            
+        self.output_add_newline()
+        self.output_dump()
+                            
     #########################################################################
     # calculation of ellapsed time based on values dumped in job.out
     #########################################################################
