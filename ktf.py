@@ -611,6 +611,7 @@ class ktf(engine):
                                dir_already_printed={}):
 
         self.results_initialize()
+        OUTPUT_DUMPED = ""
 
         status_error_links = False
 
@@ -767,9 +768,12 @@ class ktf(engine):
             self.log_debug(line_sep,4,trace="OUTPUT")
             self.log_debug(
                 'at the end of the runs chunk nb_column=%s' % (nb_column), 2, trace="TIME")
-            
-            if not(len(self.all_results_columns)) or self.DETAIL:
-                self.output_dump()
+
+            OUTPUT_DUMPED = OUTPUT_DUMPED + self.output_dump(no_print=True)
+                
+
+        if not(len(self.all_results_columns)) or self.DETAIL:
+            print(OUTPUT_DUMPED)
             
         if len(self.all_results_columns):
             self.results_dump()
@@ -803,28 +807,33 @@ class ktf(engine):
         self.output_current_column = 0
         self.output_current_line += 1
 
-    def output_dump(self):
+    def output_dump(self,no_print=False):
 
         format = {}
         total_line_length = 0
+        output = ""
         for column in range(self.output_column_max):
             column_width = self.output_column_max_width[column]
             format[column] = "|%%%ds " % column_width
             total_line_length += column_width+2
-        print("")
         total_line_length += 1
         sep = "-" * total_line_length
-        print(sep)
+        output = output + sep+"\n"
+        
         for line in range(self.output_current_line):
             if line==1 or line==(self.output_current_line-1):
-                print(sep)
+                output = output + sep + "\n"
             for column in range(self.output_column_max):
                 try:
-                    print( format[column] % self.output[line,column], end="")
+                    output = output + format[column] % self.output[line,column]
                 except:
-                    print( format[column] % "??(%s,%s)" % (line,column), end=" " )
-            print("|")
-        print(sep)
+                    output = output + format[column] % "??(%s,%s)" % (line,column) + " "
+            output = output + "|\n"
+        output = output + sep + "\n"
+        if not(no_print):
+            print("")
+            print(output)
+        return output
 
 
     def results_initialize(self):
