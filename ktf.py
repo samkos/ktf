@@ -833,7 +833,9 @@ class ktf(engine):
         self.all_results_lines = {}
 
     def results_add(self, line, column, value):
-        if line.find(self.WHAT)==-1 and line.find(self.WHEN)==-1 and column.find(self.WHAT)==-1 and column.find(self.WHEN)==-1:
+        # print(line,column,self.WHAT,self.WHEN)
+        # print(line.find(self.WHEN),column.find(self.WHEN))
+        if line.find(self.WHAT)==-1  and column.find(self.WHAT)==-1:
             return
         self.all_results_lines[line] = 1
         self.all_results_columns[column] = 1
