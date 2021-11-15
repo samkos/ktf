@@ -361,6 +361,19 @@ class ktf(engine):
         return job_file
 
     #########################################################################
+    # filter with respect to comma separated field
+    #########################################################################
+
+    def filtered(self,s,filters):
+
+        for f in filters.split(","):
+            if s.find(f)==-1:
+                self.log_debug("not found %s in %s" % (f,s),3,trace="FILTER")
+                return False
+        self.log_debug("found all of %s in %s" % (f,s),3,trace="FILTER")
+        return True
+
+    #########################################################################
     # get status of all jobs ever launched
     #########################################################################
 
@@ -375,7 +388,7 @@ class ktf(engine):
         self.log_debug('DIRS_CANDIDATES_UNFILTERED:' + pprint.pformat(DIRS_CANDIDATES_UNFILTERED), 1, trace='STATUS')
         DIRS_CANDIDATES = []
         for d in DIRS_CANDIDATES_UNFILTERED:
-            if d.find(self.WHAT)>-1 and d.find(self.WHEN)>-1:
+            if self.filtered(d,self.WHAT) and self.filtered(d,self.WHEN):
                 DIRS_CANDIDATES = DIRS_CANDIDATES + [d]
         self.log_debug('DIRS_CANDIDATES:' + pprint.pformat(DIRS_CANDIDATES), 1, trace='STATUS,SCAN')
 
@@ -407,7 +420,7 @@ class ktf(engine):
         jobs_to_check = list()
 
         for j in DIRS.keys():
-            if ("%s"%j).find(self.WHAT)==-1:
+            if not(self.filtered("%s"%j,self.WHAT)):
                 next
             status = self.job_status(j)
             self.log_debug('status : /%s/ for job %s from dir >>%s<<' %
@@ -503,7 +516,7 @@ class ktf(engine):
             return
 
         if self.WHEN and not(path == '.'):
-            if path.find(self.WHEN) < 0:
+            if not(self.filtered(path,self.WHEN)):
                 self.log_debug(
                     'rejecting path >>%s<< because of filter applied' % path, 2, trace="FILTER")
                 return
@@ -530,7 +543,7 @@ class ktf(engine):
 
                         path_new = path + "/" + d
 
-                        if self.WHEN and path_new.find(self.WHEN) < 0:
+                        if self.WHEN and not(self.filtered(path_new,self.WHEN)):
                             continue
                         
                         
@@ -580,7 +593,7 @@ class ktf(engine):
                         path_new = path + "/" + d
                         if os.path.isdir(path_new):
                             if self.WHEN:
-                                if path_new.find(self.WHEN) < 0:
+                                if not(self.filtered(path_new,self.WHEN)):
                                     self.log_debug(
                                         'rejecting path >>%s<< because of filter applied' % path_new, 2, trace="FILTER")
                                     next
@@ -858,7 +871,7 @@ class ktf(engine):
     def results_add(self, line, column, value):
         # print(line,column,self.WHAT,self.WHEN)
         # print(line.find(self.WHEN),column.find(self.WHEN))
-        if line.find(self.WHAT)==-1  and column.find(self.WHAT)==-1:
+        if not(self.filtered(line,self.WHAT)) and not(self.filtered(column,self.WHAT)):
             return
         self.all_results_lines[line] = 1
         self.all_results_columns[column] = 1
