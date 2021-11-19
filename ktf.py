@@ -804,7 +804,7 @@ class ktf(engine):
             
         if len(self.all_results_columns):
             self.results_dump()
-                            
+            self.results_json()                
 
                 
         if status_error_links:
@@ -907,6 +907,30 @@ class ktf(engine):
             
         self.output_add_newline()
         self.output_dump()
+
+    def results_json(self):
+        output = "[\n"
+        self.all_results_lines_keys = [ l for l in self.all_results_lines]
+        self.all_results_lines_keys.sort()
+        for l in self.all_results_lines_keys:
+            if len(output)>2:
+                output = output + ",\n"
+            output = output + "  {\n"
+            output = output + \
+                    """      "exp": "%s",\n""" % (l)
+            
+            for c in self.all_results_columns:
+                try:
+                    v = self.all_results[l,c]
+                except:
+                    v = "-  "
+                output = output + \
+                    """      "%s": "%s",\n""" % (c,v)
+            output = output + "  }"
+        output = output + "]\n"
+
+        f = open("out.json","w")
+        f.write(output)
                             
     #########################################################################
     # calculation of ellapsed time based on values dumped in job.out
