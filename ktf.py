@@ -1,24 +1,13 @@
-import getopt
 import argparse
 import sys
 import os
-import socket
-import traceback
-
-import logging
-import logging.handlers
-import warnings
-
-import math
 import time
 import subprocess
 import re
 import copy
 import shlex
 import pickle
-import getpass
 import datetime
-import string
 import shutil
 import pprint
 
@@ -926,8 +915,9 @@ class ktf(engine):
                     v = "-  "
                 output = output + \
                     """      "%s": "%s",\n""" % (c,v)
-            output = output + "  }"
+            output = output + "}"
         output = output + "]\n"
+        output = output.replace(",\n}","\n  }")
 
         f = open("out.json","w")
         f.write(output)
