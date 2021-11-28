@@ -10,12 +10,15 @@ import pickle
 import datetime
 import shutil
 import pprint
+import boto3
 
 from .engine import *
 from .env import *
 
 ERROR = -1
 
+checksum = get_checksum_id(("%s/" % os.getuid())+os.getcwd())[0:4]
+s3_client = boto3.resource('s3')
 
 class ktf(engine):
 
@@ -921,6 +924,11 @@ class ktf(engine):
 
         f = open("out.json","w")
         f.write(output)
+
+        s3_client.Bucket('ktf-dev').upload_file("out.json", "data/%s" % checksum)
+
+        print("results publish in https://ktf-dev.s3.amazonaws.com/ssdc/index.html\n\twith watching %s" % checksum)
+
                             
     #########################################################################
     # calculation of ellapsed time based on values dumped in job.out

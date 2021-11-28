@@ -8,6 +8,7 @@ from ktf.env import MAIL_COMMAND,SUBMIT_COMMAND,SCHED_TYPE,DEFAULT_QUEUE,MY_MACH
 from six.moves import input
 import fcntl
 import getpass
+import hashlib
 import glob
 import logging
 import logging.handlers
@@ -154,6 +155,13 @@ class my_dict(dict):
     #                                       3, trace='DIST')
     #     for k, v in dict(*args, **kwargs).items():
     #         self[k] = v
+
+
+def get_checksum_id(path):
+
+    chksum = hashlib.md5(path.encode()).hexdigest()
+    return chksum
+
 
 
 class engine(object):
