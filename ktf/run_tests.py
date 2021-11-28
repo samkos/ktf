@@ -1,7 +1,7 @@
 #!/sw/xc40cle7/python/3.8.0/sles15_gnu8.3.0/bin/python
-from ktf import *
+from ktf.ktf import *
 import glob
-from env import *
+from ktf.env import *
 import math
 
 class my_ktf(ktf):

@@ -11,8 +11,8 @@ import datetime
 import shutil
 import pprint
 
-from engine import engine
-from env import *
+from .engine import *
+from .env import *
 
 ERROR = -1
 
@@ -56,7 +56,7 @@ class ktf(engine):
 
         self.NB_COLUMNS_MAX = 3
         
-        engine.__init__(self, "ktf", "0.7")
+        engine.__init__(self, "ktf", "0.8")
 
         self.my_init()
         

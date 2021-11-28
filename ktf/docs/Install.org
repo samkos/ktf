@@ -1,0 +1,6 @@
+* make package
+python -m pip --version
+rm -rf dist/*whl
+python setup.py  bdist_wheel
+python -m pip install dist/*.whl 
+python -m twine upload dist/*.whl 
