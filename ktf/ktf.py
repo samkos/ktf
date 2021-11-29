@@ -272,6 +272,8 @@ class ktf(engine):
 
     def load_workspace(self):
 
+        return
+        
         #print("loading variables from file "+workspace_file)
 
         f_workspace = open(self.KTF_WORKSPACE_FILE, "rb")
@@ -886,7 +888,7 @@ class ktf(engine):
                     v = self.all_results[l,c]
                     self.test_per_column[c] += 1
                 except:
-                    v = "-  "
+                    v = "- "
                 self.output_add_field(v)
                 
 
@@ -924,9 +926,9 @@ class ktf(engine):
 
         f = open("out.json","w")
         f.write(output)
-
-        s3_client.Bucket('ktf-dev').upload_file("out.json", "data/%s" % checksum)
-
+        f.close()
+        
+        res = s3_client.Bucket('ktf-dev').upload_file("out.json", "data/%s" % checksum)
         print("results publish in https://ktf-dev.s3.amazonaws.com/ssdc/index.html\n\twith watching %s" % checksum)
 
                             
@@ -1277,7 +1279,7 @@ class ktf(engine):
                             common_dir)
 
             # linking contents of the tests/common_links and tests/<Experiment>/common_links directory into the directory where the job will take place
-            for d in ['tests/common_links', 'tests/%s/../common_links' % tag["Experiment"], 'tests/common_%s_links' % arch, 'tests/%s/../common_%s_links' % (tag["Experiment"],arch)]:
+            for d in ['tests/common_links',  'tests/%s/common_links' % tag["Experiment"], 'tests/%s/../common_links' % tag["Experiment"], 'tests/common_%s_links' % arch, 'tests/%s/../common_%s_links' % (tag["Experiment"],arch)]:
                 common_dir = '%s/%s' % (root_directory, d)
                 if os.path.exists(common_dir):
                     cmd = cmd + \
@@ -1368,9 +1370,7 @@ class ktf(engine):
 
     def create_ktf_init(self):
 
-        path = os.getenv('KTF_PATH')
-        if not(path):
-            path = '.'
+        path = os.path.dirname(__file__)
         for dirpath, dirs, files in os.walk("%s/templates" % path):
             for filename in files:
                 filename_from = os.path.join(dirpath, filename)
