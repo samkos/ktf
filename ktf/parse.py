@@ -21,7 +21,8 @@ class ktf_parse(engine):
       engine.__init__(self, "parse", "0.1")
 
       self.start()
-
+      self.read_parameter_file()
+      
   #####################################################################
   # check for tne option on the command line
   #########################################################################
@@ -51,7 +52,7 @@ class ktf_parse(engine):
       self.parser.add_argument("-nfu","--no-fix-unconsistent", action="store_true", help=argparse.SUPPRESS)
       self.parser.add_argument("--dry", action="store_true", help=argparse.SUPPRESS)
       self.parser.add_argument("-np", "--no-pending", help=argparse.SUPPRESS)
-      self.parser.add_argument("-m", "--mail-verbosity", help=argparse.SUPPRESS)
+      self.parser.add_argument("-m", "--mail-verbosity", action="count", default=0, help=argparse.SUPPRESS)
 
 
   #########################################################################
