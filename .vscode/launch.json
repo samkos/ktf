@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "ktf/parse.py",
-            "args": ["-h"],
+            "args": ["-xyf", "xx"],
             "console": "integratedTerminal"
         }   
     ]

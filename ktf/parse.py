@@ -1,9 +1,11 @@
 import sys
 import os
 import re
+import itertools
 import copy
 import shlex
 import pprint
+import pandas as pd
 
 from engine import *
 from env import *
@@ -22,7 +24,7 @@ class ktf_parse(engine):
 
       self.start()
       self.read_parameter_file()
-      
+
   #####################################################################
   # check for tne option on the command line
   #########################################################################
@@ -54,13 +56,28 @@ class ktf_parse(engine):
       self.parser.add_argument("-np", "--no-pending", help=argparse.SUPPRESS)
       self.parser.add_argument("-m", "--mail-verbosity", action="count", default=0, help=argparse.SUPPRESS)
 
+      self.parser.add_argument("-P", "--parameter-file", type=str,
+                               help=self.activate_option('parameter','file listing all parameter combinations to cover'))
+      self.parser.add_argument("-Pc", "--parameter-count", action="store_true",
+                              help=self.activate_option('parameter','counts all parameters combination to scan and exit'), default=False)
+      self.parser.add_argument("-Pl", "--parameter-list", action="store_true",
+                              help=self.activate_option('parameter','lists all parameters combination to scan and exit'), default=False)
+      self.parser.add_argument("-Pf", "--parameter-filter", type=str,
+                              help=self.activate_option('parameter','filter to apply on combinations to cover'))
+      self.parser.add_argument("-Pa", "--parameter-range", type=str,
+                              help=self.activate_option('parameter','filtered range to apply on combinations to cover'))
+      self.parser.add_argument("-Ps", "--parameter-sort", type=str,
+                              help=self.activate_option('parameter','sorting on combinations in this order xxx,yyy'))
+      self.parser.add_argument("-PF", "--parameter-format", action="store_true",
+                              help=self.activate_option('parameter','format the list of parameters to be dumped in a text file'), default=False)
+
 
   #########################################################################
   # parse an additional tags from the yalla parameter file
   #########################################################################
   def additional_tag(self, line):
     # direct sweeping of parameter
-    matchObj = re.match(r'^#DECIM\s*COMBINE\s*(\S+|_)\s*=\s*(.*)\s*$', line)
+    matchObj = re.match(r'^#KTF\s*COMBINE\s*(\S+|_)\s*=\s*(.*)\s*$', line)
     if (matchObj):
       (t, v) = (matchObj.group(1), matchObj.group(2))
       self.log_debug("combine tag definitition: /%s/ " % line, 4, trace='YALLA,PARAMETRIC_DETAIL,PD')
@@ -69,7 +86,7 @@ class ktf_parse(engine):
       self.direct_tag_ordered = self.direct_tag_ordered + [t]
       return True
     # direct setting of parameter
-    matchObj = re.match(r'^#DECIM\s*(\S+|_)\s*=\s*(.*)\s*$', line)
+    matchObj = re.match(r'^#KTF\s*(\S+|_)\s*=\s*(.*)\s*$', line)
     if (matchObj):
       (t, v) = (matchObj.group(1), matchObj.group(2))
       self.log_debug("direct tag definitition: /%s/ " % line, 4, trace='YALLA,PARAMETRIC_DETAIL,PD')
@@ -222,7 +239,7 @@ class ktf_parse(engine):
 
       tags_ok = False
           
-    # direct_tag contains the tags set through #DECIM tag = value
+    # direct_tag contains the tags set through #KTF tag = value
     # it needs to be evaluated on the fly to apply right tag value at a given job
     self.direct_tag = {}
     self.combined_tag = {}
@@ -245,7 +262,7 @@ class ktf_parse(engine):
       line_nb = line_nb + 1
       line = clean_line(line)
       # while scanning a python section storing it...
-      if ((line.find("#DECIM") > -1) or (line_nb == nb_lines)) and in_prog:
+      if ((line.find("#KTF") > -1) or (line_nb == nb_lines)) and in_prog:
         t = "YALLA_prog_%d" % nb_prog
         self.direct_tag[t] = prog 
         self.direct_tag_ordered = self.direct_tag_ordered + [t]
@@ -253,8 +270,8 @@ class ktf_parse(engine):
         self.log_debug("prog python found in parametric file:\n%s" % prog, \
                        4, trace='PARAMETRIC_PROG,PARAMETRIC_PROG_DETAIL')
         in_prog = False
-      # is it a program  enforced by #DECIM PYTHON directive?
-      matchObj = re.match(r'^#DECIM\s*PYTHON\s*$', line)
+      # is it a program  enforced by #KTF PYTHON directive?
+      matchObj = re.match(r'^#KTF\s*PYTHON\s*$', line)
       if (matchObj):
         in_prog = True
         prog = ""
@@ -262,7 +279,7 @@ class ktf_parse(engine):
       elif in_prog:
         prog = prog + line + "\n"
         continue
-      # is it a tag enforced by #DECIM directive?
+      # is it a tag enforced by #KTF directive?
       if self.additional_tag(line):
         continue
       
@@ -270,7 +287,7 @@ class ktf_parse(engine):
       if len(line) == 0 or (line[0] == '#'):
         continue
 
-      # parsing other line than #DECIM directive
+      # parsing other line than #KTF directive
       if not(tags_ok):
         # first line ever -> Containaing tag names
         tags_names = line.split(" ")
@@ -362,7 +379,7 @@ class ktf_parse(engine):
       self.log_debug('self.direct_tag_ordered %s ' % \
                    (pprint.pformat(self.direct_tag_ordered)), \
                    4, trace='PARAMETRIC_DETAIL,PD')
-      # adding the tags enforced by a #DECIM directive
+      # adding the tags enforced by a #KTF directive
       # evaluating them first
 
       # first path of evaluation for every computed tag
@@ -482,14 +499,14 @@ class ktf_parse(engine):
     # forcing integer casting of SLURM Integer parameters
 
     columns_to_cast = []
-    for p in l.columns:
-        if p in self.slurm_vars.keys():
-            if self.slurm_vars[p]==int:
-                self.log_debug('casting parameter %s to int' % p,\
-                   4, trace='PS,PARAMETRIC_DETAIL,PD,PARAMETRIC_SUMMARY')
-                columns_to_cast = columns_to_cast + [p]
-    if len(columns_to_cast):
-        l[columns_to_cast] = l[columns_to_cast].astype(int)
+    # for p in l.columns:
+    #     if p in self.slurm_vars.keys():
+    #         if self.slurm_vars[p]==int:
+    #             self.log_debug('casting parameter %s to int' % p,\
+    #                4, trace='PS,PARAMETRIC_DETAIL,PD,PARAMETRIC_SUMMARY')
+    #             columns_to_cast = columns_to_cast + [p]
+    # if len(columns_to_cast):
+    #     l[columns_to_cast] = l[columns_to_cast].astype(int)
 
     l['current_combination'] =  range(0, len(l))
 

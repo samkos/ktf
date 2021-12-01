@@ -1,0 +1,18 @@
+# combine-like description of parameter combinations
+#KTF STEPS=[600]
+#KTF TIME=["06:00:00"]
+#KTF COMBINE PARTITION = [  "c54", "c5d4",  "c5n4", "c5d9", "c5n9", "c5a16", "c5a32" , "c6g16", "c6g32" , "t4gmicro" , "t3asmall"  ]
+#KTF TASKS_PER_NODE    = [    16,     16,     16,       36,     36,     16 ,     32  ,     16 ,     32  ,         2  ,         2   ]
+#KTF Arch              = ["intel","intel"," intel", "intel","intel",  "amd",    "amd",   "arm",    "arm",       "arm",       "amd" ]
+#KTF COMBINE Experiment=["Delta_wing/solve", "ifw/solve", "junc/solve", "tandem_spheres/solve"]
+
+#KTF COMBINE NODES = [1, 2, 4, 8]
+#KTF COMBINE DEG = [1, 2, 3, 4]
+#KTF Case = "%s_%s_%s.%s_deg%s" % (Experiment.split("/")[0].split("_")[-1],PARTITION,NODES,TASKS_PER_NODE,DEG)
+
+
+
+
+
+###KTF COMBINE PARTITION = [ "c44", "c48", "c54", "c512", "c5d4", "c5d9", "c5n4", "c5n9", "c5n18", "c5n18-efa" ]
+####KTF TASKS_PER_NODE = [ 16, 36, 16, 48, 16, 36, 16, 36, 72, 72 ]
