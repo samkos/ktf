@@ -36,5 +36,12 @@
             "args": ["--launch"],
             "console": "integratedTerminal"
         }
+        {
+            "name": "parse.py",
+            "type": "python",
+            "request": "launch",
+            "program": "ktf/parse.py",
+            "console": "integratedTerminal"
+        }
     ]
 } 

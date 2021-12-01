@@ -1,3 +1,31 @@
+import sys
+import os
+import re
+import copy
+import shlex
+import pprint
+import boto3
+
+from engine import *
+from env import *
+
+ERROR = -1
+
+checksum = get_checksum_id(("%s/" % os.getuid())+os.getcwd())[0:4]
+s3_client = boto3.resource('s3')
+
+
+class ktf_parse(engine):
+
+  def __init__(self):
+      self.check_python_version()
+
+      engine.__init__(self, "parse", "0.1")
+
+      self.start()
+
+
+
   #########################################################################
   # parse an additional tags from the yalla parameter file
   #########################################################################
@@ -513,3 +541,6 @@
     self.parameters = l
     return self.array_clustered
       
+
+if __name__ == "__main__":
+    K = ktf_parse()
