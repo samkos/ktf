@@ -4,7 +4,6 @@ import re
 import copy
 import shlex
 import pprint
-import boto3
 
 from engine import *
 from env import *
@@ -12,7 +11,6 @@ from env import *
 ERROR = -1
 
 checksum = get_checksum_id(("%s/" % os.getuid())+os.getcwd())[0:4]
-s3_client = boto3.resource('s3')
 
 
 class ktf_parse(engine):
@@ -24,6 +22,36 @@ class ktf_parse(engine):
 
       self.start()
 
+  #####################################################################
+  # check for tne option on the command line
+  #########################################################################
+
+  def initialize_user_parser(self):
+
+      #self.log_debug('[Engine:initialize_parser] entering',4,trace='CALL')
+
+      self.parser.add_argument("-xyf", "--parameter-file", type=str,
+                              help=self.activate_option('parameter','file listing all parameter combinations to cover'))
+      self.parser.add_argument("-PF", "--parameter-filter", type=str,
+                              help=self.activate_option('parameter','filter to apply on combinations to cover'))
+      self.parser.add_argument("-Pa", "--parameter-range", type=str,
+                              help=self.activate_option('parameter','filtered range to apply on combinations to cover'))
+      
+      self.parser.add_argument("--parameter-generate", type=str,
+                              help=argparse.SUPPRESS)
+
+      self.parser.add_argument("-r","--reservation", type=str,
+                                help=argparse.SUPPRESS)
+      self.parser.add_argument("-p","--partition", type=str,
+                                help=argparse.SUPPRESS)
+
+      self.parser.add_argument("-a","--account", type=str, help=argparse.SUPPRESS)
+      self.parser.add_argument("--create-template", action="store_true", help=argparse.SUPPRESS)
+      self.parser.add_argument("--dry", action="store_true", help=argparse.SUPPRESS)
+      self.parser.add_argument("-nfu","--no-fix-unconsistent", action="store_true", help=argparse.SUPPRESS)
+      self.parser.add_argument("--dry", action="store_true", help=argparse.SUPPRESS)
+      self.parser.add_argument("-np", "--no-pending", help=argparse.SUPPRESS)
+      self.parser.add_argument("-m", "--mail-verbosity", help=argparse.SUPPRESS)
 
 
   #########################################################################

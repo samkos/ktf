@@ -5,43 +5,12 @@
     "version": "0.2.0",
     "configurations": [  
         {
-            "name": "ktf --exp",
-            "type": "python",
-            "request": "launch",
-            "program": "run_tests.py",
-            "args": ["--exp"],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "ktf --mon",
-            "type": "python",
-            "request": "launch",
-            "program": "run_tests.py",
-            "args": ["--mon", "--today"],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "ktf --mon DEB",
-            "type": "python",
-            "request": "launch",
-            "program": "run_tests.py",
-            "args": ["--mon","-ddd", "--today"],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "ktf --launch",
-            "type": "python",
-            "request": "launch",
-            "program": "run_tests.py",
-            "args": ["--launch"],
-            "console": "integratedTerminal"
-        }
-        {
             "name": "parse.py",
             "type": "python",
             "request": "launch",
             "program": "ktf/parse.py",
+            "args": ["-h"],
             "console": "integratedTerminal"
-        }
+        }   
     ]
 } 

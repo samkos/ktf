@@ -214,6 +214,8 @@ class engine(object):
         self.parser = argparse.ArgumentParser(conflict_handler='resolve')
         self.initialize_parser()
 
+        self.initialize_user_parser()
+
         if extra_args:
             args = self.user_filtered_args()
         else:
