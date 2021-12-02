@@ -8,7 +8,7 @@ settings = json.load(open("ktf/scripts/AWS_credentials.json"))
 print(settings)
 def put_movie(exp, title, year, plot,  dynamodb=None):
     if not dynamodb:
-        dynamodb = boto3.resource('dynamodb', region_name='us-east-1', aws_access_key_id=settings.aws_access_key_id, aws_secret_access_key=settings.aws_secret_access_key)
+        dynamodb = boto3.resource('dynamodb', region_name='us-east-1', aws_access_key_id=settings['aws_access_key_id'], aws_secret_access_key=settings['aws_secret_access_key'])
 
     table = dynamodb.Table('ktf-dev')
     response = table.put_item(
