@@ -11,6 +11,14 @@
             "program": "ktf/parse.py",
             "args": ["-xyf", "xx"],
             "console": "integratedTerminal"
-        }   
+        },
+        {
+            "name": "dynamodb.py",
+            "type": "python",
+            "request": "launch",
+            "program": "ktf/scripts/dynamodb.py",
+            "console": "integratedTerminal"
+        },
+        
     ]
 } 
