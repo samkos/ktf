@@ -3,7 +3,7 @@
 import argparse
 from ClusterShell.NodeSet import RangeSet, NodeSet
 import datetime
-from env import MAIL_COMMAND,SUBMIT_COMMAND,SCHED_TYPE,DEFAULT_QUEUE,MY_MACHINE,MY_MACHINE_FULL_NAME,CORES_PER_NODE,SACCT_COMMAND,clean_line
+from .env import MAIL_COMMAND,SUBMIT_COMMAND,SCHED_TYPE,DEFAULT_QUEUE,MY_MACHINE,MY_MACHINE_FULL_NAME,CORES_PER_NODE,SACCT_COMMAND,clean_line
 # to insure  compatibility with python 2 we import input from six module
 from six.moves import input
 import fcntl
@@ -1018,6 +1018,13 @@ class engine(object):
     #########################################################################
 
     def user_save(self):
+        return
+
+    #########################################################################
+    # user parser specifics
+    #########################################################################
+
+    def initialize_user_parser(self):
         return
 
     #########################################################################

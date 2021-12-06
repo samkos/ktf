@@ -24,6 +24,6 @@ setuptools.setup(
          "Operating System :: OS Independent",
      ],
      
-     install_requires=['ClusterShell','six'],  # Optional
+     install_requires=['ClusterShell','six','pandas','websocket'],  # Optional
 
  )

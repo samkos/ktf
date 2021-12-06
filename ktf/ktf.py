@@ -11,9 +11,11 @@ import datetime
 import shutil
 import pprint
 import boto3
+from .graphQLDriver import GraphqlClient
 
 from .engine import *
 from .env import *
+
 
 ERROR = -1
 
@@ -63,6 +65,10 @@ class ktf(engine):
 
         self.my_init()
         
+        self.gql_client = GraphqlClient(self.log_debug, self.args
+        )
+
+
         self.start()
 
     #########################################################################
@@ -931,6 +937,11 @@ class ktf(engine):
         res = s3_client.Bucket('ktf-dev').upload_file("out.json", "data/%s" % checksum)
         print("results publish in https://ktf-dev.s3.amazonaws.com/ssdc/index.html\n\twith watching %s" % checksum)
 
+        input = { 
+            "id": checksum,
+            "results": "xxxxxxxxx"
+        }
+        res = self.gql_client.createExperiment(input)
                             
     #########################################################################
     # calculation of ellapsed time based on values dumped in job.out
